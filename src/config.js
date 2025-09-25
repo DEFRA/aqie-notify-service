@@ -128,6 +128,27 @@ const config = convict({
       default: 'x-cdp-request-id',
       env: 'TRACING_HEADER'
     }
+  },
+  notify: {
+    apiKey: {
+      doc: 'GOV.UK Notify API Key',
+      format: String,
+      default:
+        'team-7536f7da-f08e-46ed-8693-dada56a5eb7b-0aad529b-f8ac-4395-886f-c283cb2b3ab2',
+      env: 'NOTIFY_API_KEY'
+    },
+    templateId: {
+      doc: 'GOV.UK Notify SMS Template ID for OTP',
+      format: String,
+      default: '33420172-8b38-4fc8-8bc0-0390a4099e24',
+      env: 'NOTIFY_TEMPLATE_ID'
+    },
+    otpPersonalisationKey: {
+      doc: 'Personalisation field name in the Notify template for the OTP code',
+      format: String,
+      default: 'code',
+      env: 'NOTIFY_OTP_PERSONALISATION_KEY'
+    }
   }
 })
 
