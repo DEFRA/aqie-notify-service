@@ -148,6 +148,12 @@ const config = convict({
       format: String,
       default: 'code',
       env: 'NOTIFY_OTP_PERSONALISATION_KEY'
+    },
+    timeoutMs: {
+      doc: 'Timeout (ms) for sending Notify SMS before failing',
+      format: 'nat',
+      default: 15000,
+      env: 'NOTIFY_TIMEOUT_MS'
     }
   }
 })
