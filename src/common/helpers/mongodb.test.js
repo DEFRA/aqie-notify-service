@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, test, expect, vi } from 'vitest'
 
-// Skip in CI environment due to server startup timeouts
-describe.skip('#mongoDb', () => {
+// Increased timeouts for CI environment reliability
+describe('#mongoDb', () => {
   let server
   let mockMongo
 
@@ -45,7 +45,7 @@ describe.skip('#mongoDb', () => {
         stop: vi.fn().mockResolvedValue(undefined)
       }
     }
-  }, 15000)
+  }, 60000) // Increased from 15s to 60s for CI
 
   afterAll(async () => {
     await server?.stop?.()
@@ -114,7 +114,7 @@ describe.skip('#mongoDb', () => {
         // Verify client is marked as disconnected
         expect(server.mongo.client.topology.isConnected()).toBe(false)
       }
-    }, 10000)
+    }, 30000) // Increased from 10s to 30s
 
     test('Client close method should be available', () => {
       if (server?.mongo?.client) {

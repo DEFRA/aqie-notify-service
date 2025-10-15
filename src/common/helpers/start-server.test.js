@@ -1,8 +1,8 @@
 import { beforeAll, afterAll, describe, test, expect, vi } from 'vitest'
 import hapi from '@hapi/hapi'
 
-// Skip in CI environment due to server startup timeouts
-describe.skip('#startServer', () => {
+// Increased timeouts for reliable CI execution
+describe('#startServer', () => {
   let createServerSpy
   let hapiServerSpy
   let startServerImport
@@ -15,7 +15,7 @@ describe.skip('#startServer', () => {
 
     createServerSpy = vi.spyOn(createServerImport, 'createServer')
     hapiServerSpy = vi.spyOn(hapi, 'server')
-  }, 15000)
+  }, 60000) // Increased from 15s to 60s for CI
 
   afterAll(() => {
     vi.resetAllMocks()
@@ -27,7 +27,7 @@ describe.skip('#startServer', () => {
 
       expect(createServerSpy).toHaveBeenCalled()
       expect(hapiServerSpy).toHaveBeenCalled()
-    }, 10000)
+    }, 45000) // Increased from 10s to 45s for CI
   })
 
   describe('When server start fails', () => {
@@ -37,6 +37,6 @@ describe.skip('#startServer', () => {
       await expect(startServerImport.startServer()).rejects.toThrow(
         'Server failed to start'
       )
-    }, 10000)
+    }, 30000) // Increased from 10s to 30s
   })
 })
