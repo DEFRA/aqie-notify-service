@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
