@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -35,13 +34,19 @@ function parseNotifyError(err) {
   const errorType = primary.error || primary.code
 
   let category = 'unknown'
-  if (statusCode === 401) category = 'unauthorized'
-  else if (statusCode === 403) category = 'forbidden'
-  else if (errorType === 'RateLimitError') category = 'rate_limit'
-  else if (errorType === 'TooManyRequestsError') category = 'daily_limit'
-  else if (errorType === 'BadRequestError' || statusCode === 400)
+  if (statusCode === 401) {
+    category = 'unauthorized'
+  } else if (statusCode === 403) {
+    category = 'forbidden'
+  } else if (errorType === 'RateLimitError') {
+    category = 'rate_limit'
+  } else if (errorType === 'TooManyRequestsError') {
+    category = 'daily_limit'
+  } else if (errorType === 'BadRequestError' || statusCode === 400) {
     category = 'bad_request'
-  else if (statusCode && statusCode >= 500) category = 'server_error'
+  } else if (statusCode && statusCode >= 500) {
+    category = 'server_error'
+  }
 
   const retriable =
     (statusCode >= 500 && statusCode <= 599) ||
