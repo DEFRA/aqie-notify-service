@@ -1,300 +1,76 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+
+// Mock the entire @defra/hapi-tracing module
+vi.mock('@defra/hapi-tracing', () => ({
+  getTraceId: vi.fn()
+}))
 
 describe('Logger Options', () => {
   let loggerModule
-  let testHelpers
+  let loggerOptions
+  let getTraceIdMock
 
   beforeAll(async () => {
+    // Import the mocked getTraceId function
+    const { getTraceId } = await import('@defra/hapi-tracing')
+    getTraceIdMock = getTraceId
+
+    // Import the logger-options module
     loggerModule = await import('./logger-options.js')
-    testHelpers = createTestHelpers()
+    loggerOptions = loggerModule.loggerOptions
   })
 
   describe('Module Structure', () => {
-    it('should have valid exports', () => {
+    it('should export loggerOptions', () => {
       expect(loggerModule).toBeDefined()
-      expect(typeof loggerModule).toBe('object')
-
-      const exportNames = Object.keys(loggerModule)
-      expect(exportNames.length).toBeGreaterThan(0)
-
-      console.log('Available exports:', exportNames)
+      expect(loggerModule.loggerOptions).toBeDefined()
+      expect(typeof loggerModule.loggerOptions).toBe('object')
     })
   })
 
-  describe('Function Coverage', () => {
-    it('should execute all exported functions for coverage', () => {
-      const functionsFound = testAllExportedFunctions(loggerModule, testHelpers)
+  describe('Logger Options Configuration', () => {
+    it('should have the correct structure', () => {
+      expect(loggerOptions).toHaveProperty('enabled')
+      expect(loggerOptions).toHaveProperty('ignorePaths')
+      expect(loggerOptions).toHaveProperty('redact')
+      expect(loggerOptions).toHaveProperty('level')
+      expect(loggerOptions).toHaveProperty('nesting')
+      expect(loggerOptions).toHaveProperty('mixin')
+    })
 
-      if (!functionsFound) {
-        console.log('No functions found - testing object exports instead')
-        expect(Object.keys(loggerModule).length).toBeGreaterThan(0)
-      }
+    it('should have the correct types for properties', () => {
+      expect(typeof loggerOptions.enabled).toBe('boolean')
+      expect(Array.isArray(loggerOptions.ignorePaths)).toBe(true)
+      expect(typeof loggerOptions.redact).toBe('object')
+      expect(typeof loggerOptions.level).toBe('string')
+      expect(typeof loggerOptions.nesting).toBe('boolean')
+      expect(typeof loggerOptions.mixin).toBe('function')
     })
   })
 
-  describe('Specific Export Tests', () => {
-    it('should test loggerOptions if exported', () => {
-      testLoggerOptionsExport(loggerModule, testHelpers)
+  describe('Mixin Function', () => {
+    it('should return an object', () => {
+      const mixinResult = loggerOptions.mixin()
+      expect(typeof mixinResult).toBe('object')
     })
 
-    it('should test createLoggerOptions if exported', () => {
-      testCreateLoggerOptionsExport(loggerModule, testHelpers)
+    it('should include trace ID if available', () => {
+      const mockTraceId = 'mock-trace-id'
+
+      // Mock the getTraceId function to return a trace ID
+      getTraceIdMock.mockReturnValue(mockTraceId)
+
+      const mixinResult = loggerOptions.mixin()
+      expect(mixinResult).toHaveProperty('trace')
+      expect(mixinResult.trace).toHaveProperty('id', mockTraceId)
     })
 
-    it('should test getLoggerConfig if exported', () => {
-      testGetLoggerConfigExport(loggerModule, testHelpers)
-    })
+    it('should return an empty object if trace ID is not available', () => {
+      // Mock the getTraceId function to return undefined
+      getTraceIdMock.mockReturnValue(undefined)
 
-    it('should test formatters if exported', () => {
-      testFormattersExport(loggerModule, testHelpers)
-    })
-
-    it('should test serializers if exported', () => {
-      testSerializersExport(loggerModule, testHelpers)
-    })
-  })
-
-  describe('Edge Cases', () => {
-    it('should handle all export types comprehensively', () => {
-      testAllExportTypesComprehensively(loggerModule, testHelpers)
-    })
-  })
-
-  describe('Helper Methods', () => {
-    it('should have helper methods available', () => {
-      expect(testHelpers.callFunctionSafely).toBeInstanceOf(Function)
-      expect(testHelpers.testFunctionWithParameters).toBeInstanceOf(Function)
-      expect(testHelpers.testFormatterFunction).toBeInstanceOf(Function)
-      expect(testHelpers.testSerializerFunction).toBeInstanceOf(Function)
-      expect(testHelpers.testFunctionExhaustively).toBeInstanceOf(Function)
+      const mixinResult = loggerOptions.mixin()
+      expect(mixinResult).toEqual({})
     })
   })
 })
-
-// Extracted helper functions to reduce nesting
-function createTestHelpers() {
-  return {
-    callFunctionSafely: (func, params = [], name = 'function') => {
-      try {
-        const result = func(...params)
-        expect(result).toBeDefined()
-        console.log(`✓ ${name} succeeded`)
-        return true
-      } catch (error) {
-        console.log(`⚠ ${name} threw: ${error.message}`)
-        expect(func).toBeInstanceOf(Function)
-        return false
-      }
-    },
-
-    testFunctionWithParameters: (func, name) => {
-      const testParams = [[], [{}], [{}, 'test', new Date()]]
-
-      return testParams.some((params) => {
-        return createTestHelpers().callFunctionSafely(func, params, name)
-      })
-    },
-
-    testFormatterFunction: (formatter, name) => {
-      const testCases = [['info', {}], [{ level: 'info', msg: 'test' }]]
-
-      return testCases.some((params) => {
-        return createTestHelpers().callFunctionSafely(
-          formatter,
-          params,
-          `formatter.${name}`
-        )
-      })
-    },
-
-    testSerializerFunction: (serializer, name) => {
-      const testData = [[{ test: 'data' }], [new Error('test')]]
-
-      return testData.some((params) => {
-        return createTestHelpers().callFunctionSafely(
-          serializer,
-          params,
-          `serializer.${name}`
-        )
-      })
-    },
-
-    testFunctionExhaustively: (func, name) => {
-      const attempts = [
-        [],
-        [{}],
-        ['test'],
-        [{ level: 'info' }],
-        [null, {}],
-        [{}, 'test', 123]
-      ]
-
-      return attempts.some((params, index) => {
-        return createTestHelpers().callFunctionSafely(
-          func,
-          params,
-          `${name}[attempt${index}]`
-        )
-      })
-    }
-  }
-}
-
-function testAllExportedFunctions(loggerModule, testHelpers) {
-  let functionsFound = false
-
-  Object.entries(loggerModule).forEach(([name, exportedItem]) => {
-    if (typeof exportedItem === 'function') {
-      functionsFound = true
-      testFunctionExport(name, exportedItem, testHelpers)
-    }
-
-    if (isNonNullObject(exportedItem)) {
-      const nestedFunctions = testObjectExport(name, exportedItem, testHelpers)
-      functionsFound = functionsFound || nestedFunctions
-    }
-  })
-
-  return functionsFound
-}
-
-function testFunctionExport(name, exportedItem, testHelpers) {
-  console.log(`Testing function: ${name}`)
-
-  expect(exportedItem).toBeInstanceOf(Function)
-  expect(typeof exportedItem).toBe('function')
-
-  const testInputs = getStandardTestInputs()
-
-  testInputs.forEach((input, index) => {
-    try {
-      const result = exportedItem(input)
-      expect(result).toBeDefined()
-      console.log(`✓ ${name}(${JSON.stringify(input)}) = success`)
-    } catch (error) {
-      console.log(`⚠ ${name}(input${index}) threw: ${error.message}`)
-      expect(exportedItem).toBeInstanceOf(Function)
-    }
-  })
-}
-
-function testObjectExport(name, exportedItem, testHelpers) {
-  expect(exportedItem).toBeDefined()
-  console.log(`Testing object export: ${name}`)
-
-  let functionsFound = false
-
-  Object.entries(exportedItem).forEach(([propName, propValue]) => {
-    if (typeof propValue === 'function') {
-      functionsFound = true
-      console.log(`Testing nested function: ${name}.${propName}`)
-      testHelpers.testFunctionWithParameters(propValue, `${name}.${propName}`)
-    }
-  })
-
-  return functionsFound
-}
-
-function testLoggerOptionsExport(loggerModule, testHelpers) {
-  if (!loggerModule.loggerOptions) {
-    console.log('loggerOptions not exported')
-    return
-  }
-
-  const opts = loggerModule.loggerOptions
-  expect(opts).toBeDefined()
-  expect(typeof opts).toBe('object')
-
-  Object.entries(opts).forEach(([key, value]) => {
-    if (typeof value === 'function') {
-      console.log(`Calling loggerOptions.${key}`)
-      testHelpers.testFunctionWithParameters(value, `loggerOptions.${key}`)
-    }
-  })
-}
-
-function testCreateLoggerOptionsExport(loggerModule, testHelpers) {
-  if (!loggerModule.createLoggerOptions) {
-    console.log('createLoggerOptions not exported')
-    return
-  }
-
-  const fn = loggerModule.createLoggerOptions
-  const testConfigs = [[], [{}], [{ level: 'debug' }], [{ pretty: true }]]
-
-  testConfigs.forEach((params) => {
-    testHelpers.callFunctionSafely(fn, params, 'createLoggerOptions')
-  })
-}
-
-function testGetLoggerConfigExport(loggerModule, testHelpers) {
-  if (!loggerModule.getLoggerConfig) {
-    console.log('getLoggerConfig not exported')
-    return
-  }
-
-  const fn = loggerModule.getLoggerConfig
-  const testParams = [[], ['production'], ['development']]
-
-  testParams.forEach((params) => {
-    testHelpers.callFunctionSafely(fn, params, 'getLoggerConfig')
-  })
-}
-
-function testFormattersExport(loggerModule, testHelpers) {
-  if (!loggerModule.formatters) {
-    console.log('formatters not exported')
-    return
-  }
-
-  const formatters = loggerModule.formatters
-
-  Object.entries(formatters).forEach(([name, formatter]) => {
-    if (typeof formatter === 'function') {
-      console.log(`Testing formatter: ${name}`)
-      testHelpers.testFormatterFunction(formatter, name)
-    }
-  })
-}
-
-function testSerializersExport(loggerModule, testHelpers) {
-  if (!loggerModule.serializers) {
-    console.log('serializers not exported')
-    return
-  }
-
-  const serializers = loggerModule.serializers
-
-  Object.entries(serializers).forEach(([name, serializer]) => {
-    if (typeof serializer === 'function') {
-      console.log(`Testing serializer: ${name}`)
-      testHelpers.testSerializerFunction(serializer, name)
-    }
-  })
-}
-
-function testAllExportTypesComprehensively(loggerModule, testHelpers) {
-  Object.entries(loggerModule).forEach(([name, exportedItem]) => {
-    expect(exportedItem).toBeDefined()
-
-    if (typeof exportedItem === 'function') {
-      testHelpers.testFunctionExhaustively(exportedItem, name)
-    }
-  })
-}
-
-// Utility functions
-function isNonNullObject(item) {
-  return typeof item === 'object' && item !== null
-}
-
-function getStandardTestInputs() {
-  return [
-    undefined,
-    {},
-    { level: 'info' },
-    { level: 'debug', pretty: true },
-    { transport: { target: 'pino-pretty' } },
-    { serializers: {}, formatters: {} }
-  ]
-}
