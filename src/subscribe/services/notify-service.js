@@ -1,4 +1,4 @@
-/* eslint-disable */
+/* eslint-disable complexity, curly, no-magic-numbers */
 
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
