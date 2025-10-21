@@ -3,6 +3,9 @@ import { generateOTPWithExpiry } from '../../common/helpers/otp-generator.js'
 import { notifyService } from './notify-service.js'
 import { createUserContactService } from './user-contact-service.js'
 
+// Define constants for clarity
+const OTP_EXPIRY_MINUTES = 1440 // 24 hours expiry
+
 function createOtpService(db, logger) {
   const userContactService = createUserContactService(db)
 
@@ -12,7 +15,8 @@ function createOtpService(db, logger) {
       return { error: phoneValidation.error }
     }
     const normalizedPhoneNumber = phoneValidation.normalized
-    const { otp, expiryTime } = generateOTPWithExpiry(1440) // 24 hours expiry
+    const { otp, expiryTime } = generateOTPWithExpiry(OTP_EXPIRY_MINUTES)
+
     await userContactService.storeVerificationDetails(
       normalizedPhoneNumber,
       otp,
