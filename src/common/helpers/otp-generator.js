@@ -34,7 +34,7 @@ function generateOTPWithExpiry(expiryMinutes = 24 * 60) {
  * @returns {boolean} - True if OTP is still valid, false if expired
  */
 function isOTPValid(expiryTime) {
-  return new Date() < new Date(expiryTime)
+  return Date.now() < new Date(expiryTime).getTime()
 }
 
 export { generateOTP, generateOTPWithExpiry, isOTPValid }

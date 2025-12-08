@@ -6,19 +6,12 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 const logger = createLogger()
 
 /**
- * Domain error for SMS sending failures (structured for upstream handling)
+ * Mask MSISDN for logs
  */
-class NotifySmsError extends Error {
-  constructor(message, meta) {
-    super(message)
-    this.name = 'NotifySmsError'
-    this.statusCode = meta?.statusCode
-    this.errorType = meta?.errorType
-
-    this.category = meta?.category
-    this.retriable = meta?.retriable
-    this.meta = meta
-  }
+function maskMsisdn(msisdn) {
+  if (!msisdn) return undefined
+  const visible = msisdn.slice(-3)
+  return msisdn.slice(0, msisdn.length - 3).replace(/./g, 'x') + visible
 }
 
 /**
@@ -66,58 +59,80 @@ function parseNotifyError(err) {
 class NotifyService {
   constructor() {
     this.apiKey = config.get('notify.apiKey')
-    this.templateId = config.get('notify.templateId')
-    this.otpPersonalisationKey = config.get('notify.otpPersonalisationKey')
-    this.timeoutMs = config.get('notify.timeoutMs')
     this.client = new NotifyClient(this.apiKey)
   }
 
   /**
-   * Sends an OTP SMS to the specified phone number
-   * @param {string} phoneNumber - The phone number to send SMS to (E.164 format)
-   * @param {string} otp - The 5-digit OTP code
-   * @returns {Promise<object>} - Notify API response
+   * Generic SMS sender
    */
-  async sendOTPSMS(phoneNumber, otp) {
+  async sendSmsGeneric(templateId, phoneNumber, personalisation) {
     try {
-      logger.info('notify.send_sms.start', {
-        phoneNumberMasked: maskMsisdn(phoneNumber)
-      })
-
-      const personalisation = { [this.otpPersonalisationKey]: otp }
-
-      const response = await this.client.sendSms(this.templateId, phoneNumber, {
-        personalisation
-      })
-
-      const data = response?.data || {}
-      if (!data.id) {
-        logger.error('notify.send_sms.missing_id')
-        throw new Error('MissingNotificationId')
+      if (!templateId || !phoneNumber) {
+        throw new Error(
+          'Missing required parameters: templateId and phoneNumber'
+        )
       }
 
-      logger.info('notify.send_sms.success', {
-        notificationId: data.id
+      const response = await this.client.sendSms(templateId, phoneNumber, {
+        personalisation
       })
-
+      const data = response?.data || {}
+      if (!data.id) {
+        logger.error('notify.send_sms_generic.missing_id')
+        throw new Error('MissingNotificationId')
+      }
       return {
-        success: true,
         notificationId: data.id,
         notificationStatus: data.uri
       }
     } catch (err) {
       const parsed = parseNotifyError(err)
-
-      logger.error('notify.send_sms.failure', {
+      logger.error('notify.send_sms_generic.failure', {
+        templateId,
+        phoneNumberMasked: maskMsisdn(phoneNumber),
         statusCode: parsed.statusCode,
         errorType: parsed.errorType,
         category: parsed.category,
-        retriable: parsed.retriable,
-        details: parsed.details
+        originalError: err.message,
+        notifyResponse: err.response?.data
       })
-
-      // Upstream can inspect .retriable to implement backoff / retry
       throw new NotifySmsError('FailedToSendSMS', parsed)
+    }
+  }
+
+  /**
+   * Generic Email sender
+   */
+  async sendEmailGeneric(templateId, emailAddress, personalisation) {
+    try {
+      if (!templateId || !emailAddress) {
+        throw new Error(
+          'Missing required parameters: templateId and emailAddress'
+        )
+      }
+
+      const response = await this.client.sendEmail(templateId, emailAddress, {
+        personalisation
+      })
+      const data = response?.data || {}
+      if (!data.id) {
+        logger.error('notify.send_email_generic.missing_id')
+        throw new Error('MissingNotificationId')
+      }
+      return {
+        notificationId: data.id,
+        notificationStatus: data.uri
+      }
+    } catch (err) {
+      const parsed = parseNotifyError(err)
+      logger.error('notify.send_email_generic.failure', {
+        templateId,
+        emailAddress: emailAddress?.replace(/(.{2}).*(@.*)/, '$1***$2'),
+        statusCode: parsed.statusCode,
+        errorType: parsed.errorType,
+        category: parsed.category
+      })
+      throw new NotifySmsError('FailedToSendEmail', parsed)
     }
   }
 
@@ -148,15 +163,60 @@ class NotifyService {
 }
 
 /**
- * Mask MSISDN for logs
+ * Domain error for SMS sending failures (structured for upstream handling)
  */
-function maskMsisdn(msisdn) {
-  if (!msisdn) return undefined
-  const visible = msisdn.slice(-3)
-  return msisdn.slice(0, msisdn.length - 3).replace(/./g, 'x') + visible
+class NotifySmsError extends Error {
+  constructor(message, meta) {
+    super(message)
+    this.name = 'NotifySmsError'
+    this.statusCode = meta?.statusCode
+    this.errorType = meta?.errorType
+
+    this.category = meta?.category
+    this.retriable = meta?.retriable
+    this.meta = meta
+  }
 }
 
 // Create singleton instance
 const notifyService = new NotifyService()
 
-export { notifyService, NotifyService, NotifySmsError }
+/**
+ * Factory function to create notification service with simplified interface
+ */
+function createNotificationService() {
+  async function sendSms(phoneNumber, templateId, personalisation) {
+    return notifyService.sendSmsGeneric(
+      templateId,
+      phoneNumber,
+      personalisation
+    )
+  }
+
+  async function sendEmail(emailAddress, templateId, personalisation) {
+    return notifyService.sendEmailGeneric(
+      templateId,
+      emailAddress,
+      personalisation
+    )
+  }
+
+  async function send(phoneNumber, emailAddress, templateId, personalisation) {
+    if (phoneNumber) {
+      return sendSms(phoneNumber, templateId, personalisation)
+    } else if (emailAddress) {
+      return sendEmail(emailAddress, templateId, personalisation)
+    } else {
+      throw new Error('Either phoneNumber or emailAddress must be provided')
+    }
+  }
+
+  return { sendSms, sendEmail, send }
+}
+
+export {
+  notifyService,
+  NotifyService,
+  NotifySmsError,
+  createNotificationService
+}
