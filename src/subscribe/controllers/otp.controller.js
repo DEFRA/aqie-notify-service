@@ -29,9 +29,9 @@ async function generateOtpHandler(request, h) {
       return h
         .response({ notificationId, status: 'submitted' })
         .code(HTTP_STATUS_CREATED)
-    } catch (notifyErr) {
+    } catch (error_) {
       request.logger.error('Failed to send notification', {
-        error: notifyErr.message
+        error: error_.message
       })
       return h
         .response({ status: 'otp_generated_notification_failed' })

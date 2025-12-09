@@ -191,35 +191,40 @@ class NotifySmsError extends Error {
 const notifyService = new NotifyService()
 
 /**
+ * Send SMS via notification service
+ */
+async function sendSms(phoneNumber, templateId, personalisation) {
+  return notifyService.sendSmsGeneric(templateId, phoneNumber, personalisation)
+}
+
+/**
+ * Send Email via notification service
+ */
+async function sendEmail(emailAddress, templateId, personalisation) {
+  return notifyService.sendEmailGeneric(
+    templateId,
+    emailAddress,
+    personalisation
+  )
+}
+
+/**
+ * Send notification (SMS or Email)
+ */
+async function send(phoneNumber, emailAddress, templateId, personalisation) {
+  if (phoneNumber) {
+    return sendSms(phoneNumber, templateId, personalisation)
+  } else if (emailAddress) {
+    return sendEmail(emailAddress, templateId, personalisation)
+  } else {
+    throw new Error('Either phoneNumber or emailAddress must be provided')
+  }
+}
+
+/**
  * Factory function to create notification service with simplified interface
  */
 function createNotificationService() {
-  async function sendSms(phoneNumber, templateId, personalisation) {
-    return notifyService.sendSmsGeneric(
-      templateId,
-      phoneNumber,
-      personalisation
-    )
-  }
-
-  async function sendEmail(emailAddress, templateId, personalisation) {
-    return notifyService.sendEmailGeneric(
-      templateId,
-      emailAddress,
-      personalisation
-    )
-  }
-
-  async function send(phoneNumber, emailAddress, templateId, personalisation) {
-    if (phoneNumber) {
-      return sendSms(phoneNumber, templateId, personalisation)
-    } else if (emailAddress) {
-      return sendEmail(emailAddress, templateId, personalisation)
-    } else {
-      throw new Error('Either phoneNumber or emailAddress must be provided')
-    }
-  }
-
   return { sendSms, sendEmail, send }
 }
 
