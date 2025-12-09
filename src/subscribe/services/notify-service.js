@@ -1,4 +1,5 @@
-/* eslint-disable */
+/* eslint-disable complexity, curly, no-magic-numbers */
+
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -27,19 +28,8 @@ function parseNotifyError(err) {
   const primary = errors[0] || {}
   const errorType = primary.error || primary.code
 
-  let category = 'unknown'
-  if (statusCode === 401) category = 'unauthorized'
-  else if (statusCode === 403) category = 'forbidden'
-  else if (errorType === 'RateLimitError') category = 'rate_limit'
-  else if (errorType === 'TooManyRequestsError') category = 'daily_limit'
-  else if (errorType === 'BadRequestError' || statusCode === 400)
-    category = 'bad_request'
-  else if (statusCode && statusCode >= 500) category = 'server_error'
-
-  const retriable =
-    (statusCode >= 500 && statusCode <= 599) ||
-    errorType === 'RateLimitError' ||
-    errorType === 'TooManyRequestsError'
+  const category = resolveCategory(statusCode, errorType)
+  const retriable = isRetriable(statusCode, errorType)
 
   return {
     statusCode,
@@ -51,6 +41,25 @@ function parseNotifyError(err) {
       // intentionally exclude mutable message text per guidance
     }))
   }
+}
+
+function resolveCategory(statusCode, errorType) {
+  if (statusCode === 401) return 'unauthorized'
+  if (statusCode === 403) return 'forbidden'
+  if (errorType === 'RateLimitError') return 'rate_limit'
+  if (errorType === 'TooManyRequestsError') return 'daily_limit'
+  if (errorType === 'BadRequestError' || statusCode === 400)
+    return 'bad_request'
+  if (statusCode && statusCode >= 500) return 'server_error'
+  return 'unknown'
+}
+
+function isRetriable(statusCode, errorType) {
+  return (
+    (statusCode >= 500 && statusCode <= 599) ||
+    errorType === 'RateLimitError' ||
+    errorType === 'TooManyRequestsError'
+  )
 }
 
 /**

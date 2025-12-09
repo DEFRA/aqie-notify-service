@@ -14,16 +14,16 @@ function isValidUKPhoneNumber(phoneNumber) {
   }
 
   // Remove all spaces, hyphens, parentheses, and plus signs
-  const cleanNumber = phoneNumber.replace(/[\s\-()+-]/g, '')
+  const cleanNumber = phoneNumber.replace(/[\s\-()+]/g, '')
 
   // UK phone number patterns (only mobile and landline numbers)
   const ukPatterns = [
     // Mobile numbers starting with 07 (11 digits total: 07xxxxxxxxx)
-    /^(?:0|44)7[0-9]{9}$/,
+    /^(?:0|44)7\d{9}$/,
     // London 020 (11 digits total: 020xxxxxxxx)
-    /^(?:0|44)20[0-9]{8}$/,
+    /^(?:0|44)20\d{8}$/,
     // Other geographic numbers starting with 01 (11 digits total: 01xxx xxxxxx)
-    /^(?:0|44)1[0-9]{1}[0-9]{8}$/
+    /^(?:0|44)1\d{9}$/
   ]
 
   return ukPatterns.some((pattern) => pattern.test(cleanNumber))
@@ -40,7 +40,7 @@ function normalizeUKPhoneNumber(phoneNumber) {
   }
 
   // Remove all spaces, hyphens, parentheses, and plus signs
-  let cleanNumber = phoneNumber.replace(/[\s\-()+-]/g, '')
+  let cleanNumber = phoneNumber.replace(/[\s\-()+]/g, '')
 
   // If it starts with 44, add +
   if (cleanNumber.startsWith('44')) {
@@ -53,6 +53,10 @@ function normalizeUKPhoneNumber(phoneNumber) {
   // If it doesn't start with + or 44, assume it's UK number without prefix
   else if (!cleanNumber.startsWith('+')) {
     cleanNumber = '+44' + cleanNumber
+  }
+  // Add the missing else clause to handle unexpected cases
+  else {
+    throw new Error('Invalid phone number format')
   }
 
   return cleanNumber

@@ -1,4 +1,5 @@
-/* eslint-disable */
+/* eslint-disable no-magic-numbers, no-useless-escape */
+
 import Joi from 'joi'
 
 const generateOtpSchema = Joi.object({
