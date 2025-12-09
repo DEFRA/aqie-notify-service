@@ -16,6 +16,19 @@ function maskMsisdn(msisdn) {
 }
 
 /**
+ * Mask email address for logs (safe from ReDoS)
+ */
+function maskEmail(email) {
+  if (!email) return undefined
+  const atIndex = email.indexOf('@')
+  if (atIndex <= 0) return email
+  const localPart = email.substring(0, atIndex)
+  const domain = email.substring(atIndex)
+  const visibleChars = Math.min(2, localPart.length)
+  return localPart.substring(0, visibleChars) + '***' + domain
+}
+
+/**
  * Parse Notify client error safely (do not depend on message text)
  * @param {any} err
  * @returns {{statusCode:number|undefined,errorType:string|undefined,category:string,retriable:boolean,details:Array}}
@@ -136,7 +149,7 @@ class NotifyService {
       const parsed = parseNotifyError(err)
       logger.error('notify.send_email_generic.failure', {
         templateId,
-        emailAddress: emailAddress?.replace(/(.{2}).*(@.*)/, '$1***$2'),
+        emailAddress: maskEmail(emailAddress),
         statusCode: parsed.statusCode,
         errorType: parsed.errorType,
         category: parsed.category
