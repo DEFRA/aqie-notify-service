@@ -408,16 +408,7 @@ describe('Notify Service', () => {
         const service = new NotifyService()
 
         expect(mockConfig.get).toHaveBeenCalledWith('notify.apiKey')
-        expect(mockConfig.get).toHaveBeenCalledWith('notify.templateId')
-        expect(mockConfig.get).toHaveBeenCalledWith(
-          'notify.otpPersonalisationKey'
-        )
-        expect(mockConfig.get).toHaveBeenCalledWith('notify.timeoutMs')
-
         expect(service.apiKey).toBe('test-api-key-123')
-        expect(service.templateId).toBe('template-456')
-        expect(service.otpPersonalisationKey).toBe('otp_code')
-        expect(service.timeoutMs).toBe(5000)
       }, 10000)
 
       it('should create NotifyClient with API key', async () => {
@@ -433,7 +424,7 @@ describe('Notify Service', () => {
       }, 10000)
     })
 
-    describe('sendOTPSMS Method', () => {
+    describe('sendSmsGeneric Method', () => {
       it('should send SMS successfully', async () => {
         setupMocks(mockNotifyClient, mockConfig, mockLogger)
 
@@ -447,29 +438,21 @@ describe('Notify Service', () => {
         })
 
         const service = new NotifyService()
-        const result = await service.sendOTPSMS('+447123456789', '12345')
+        const result = await service.sendSmsGeneric(
+          'template-456',
+          '+447123456789',
+          { code: '12345' }
+        )
 
         expect(mockNotifyClient.sendSms).toHaveBeenCalledWith(
           'template-456',
           '+447123456789',
           {
-            personalisation: { otp_code: '12345' }
-          }
-        )
-
-        expect(mockLogger.info).toHaveBeenCalledWith('notify.send_sms.start', {
-          phoneNumberMasked: 'xxxxxxxxxx789'
-        })
-
-        expect(mockLogger.info).toHaveBeenCalledWith(
-          'notify.send_sms.success',
-          {
-            notificationId: 'notification-123'
+            personalisation: { code: '12345' }
           }
         )
 
         expect(result).toEqual({
-          success: true,
           notificationId: 'notification-123',
           notificationStatus:
             'https://api.notifications.service.gov.uk/v2/notifications/notification-123'
@@ -490,11 +473,13 @@ describe('Notify Service', () => {
         const service = new NotifyService()
 
         await expect(
-          service.sendOTPSMS('+447123456789', '12345')
+          service.sendSmsGeneric('template-456', '+447123456789', {
+            code: '12345'
+          })
         ).rejects.toThrow(NotifySmsError)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'notify.send_sms.missing_id'
+          'notify.send_sms_generic.missing_id'
         )
       }, 10000)
 
@@ -510,7 +495,9 @@ describe('Notify Service', () => {
         const service = new NotifyService()
 
         await expect(
-          service.sendOTPSMS('+447123456789', '12345')
+          service.sendSmsGeneric('template-456', '+447123456789', {
+            code: '12345'
+          })
         ).rejects.toThrow(NotifySmsError)
       }, 10000)
 
@@ -527,7 +514,9 @@ describe('Notify Service', () => {
         const service = new NotifyService()
 
         try {
-          await service.sendOTPSMS('+447123456789', '12345')
+          await service.sendSmsGeneric('template-456', '+447123456789', {
+            code: '12345'
+          })
           expect.fail('Should have thrown an error')
         } catch (error) {
           expect(error).toBeInstanceOf(NotifySmsError)
@@ -536,10 +525,14 @@ describe('Notify Service', () => {
         }
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'notify.send_sms.failure',
+          'notify.send_sms_generic.failure',
           expect.objectContaining({
+            templateId: 'template-456',
+            phoneNumberMasked: 'xxxxxxxxxx789',
+            statusCode: undefined,
+            errorType: undefined,
             category: 'unknown',
-            retriable: false
+            originalError: 'Network timeout'
           })
         )
       }, 10000)
@@ -623,9 +616,11 @@ describe('Notify Service', () => {
       expect(module.NotifyService).toBeDefined()
       expect(module.NotifySmsError).toBeDefined()
       expect(module.notifyService).toBeDefined()
+      expect(module.createNotificationService).toBeDefined()
       expect(typeof module.NotifyService).toBe('function')
       expect(typeof module.NotifySmsError).toBe('function')
       expect(typeof module.notifyService).toBe('object')
+      expect(typeof module.createNotificationService).toBe('function')
     }, 10000)
 
     it('should create singleton instance correctly', async () => {
@@ -640,22 +635,22 @@ describe('Notify Service', () => {
     }, 10000)
   })
 
-  describe('Configuration Integration', () => {
-    it('should properly integrate with config system', () => {
-      const expectedKeys = [
-        'notify.apiKey',
-        'notify.templateId',
-        'notify.otpPersonalisationKey',
-        'notify.timeoutMs'
-      ]
+  describe('createNotificationService Factory', () => {
+    it('should create service with simplified interface', async () => {
+      const { mockNotifyClient, mockConfig, mockLogger } = createMockSetup()
+      setupMocks(mockNotifyClient, mockConfig, mockLogger)
 
-      expect(expectedKeys).toEqual([
-        'notify.apiKey',
-        'notify.templateId',
-        'notify.otpPersonalisationKey',
-        'notify.timeoutMs'
-      ])
-    })
+      const { createNotificationService } = await import('./notify-service.js')
+
+      const service = createNotificationService()
+
+      expect(service.sendSms).toBeDefined()
+      expect(service.sendEmail).toBeDefined()
+      expect(service.send).toBeDefined()
+      expect(typeof service.sendSms).toBe('function')
+      expect(typeof service.sendEmail).toBe('function')
+      expect(typeof service.send).toBe('function')
+    }, 10000)
   })
 
   describe('API Response Structure', () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createOtpService } from './otp.service.js'
 import { validateAndNormalizeUKPhoneNumber } from '../../common/helpers/phone-validation.js'
 import { generateOTPWithExpiry } from '../../common/helpers/otp-generator.js'
-import { notifyService } from './notify-service.js'
+
 import { createUserContactService } from './user-contact-service.js'
 
 // FIXED: Moved all vi.mock() calls to after imports
@@ -14,11 +14,7 @@ vi.mock('../../common/helpers/otp-generator.js', () => ({
   generateOTPWithExpiry: vi.fn()
 }))
 
-vi.mock('./notify-service.js', () => ({
-  notifyService: {
-    sendOTPSMS: vi.fn()
-  }
-}))
+// Notify service is no longer mocked here - it's called from the controller
 
 vi.mock('./user-contact-service.js', () => ({
   createUserContactService: vi.fn()
@@ -72,9 +68,8 @@ describe('OTP Service', () => {
   describe('generate method', () => {
     const phoneNumber = '07123456789'
     const normalizedPhone = '+447123456789'
-    const otp = '123456'
+    const otp = '12345'
     const expiryTime = new Date('2024-01-02T00:00:00Z')
-    const notificationId = 'notification-123'
 
     describe('Success scenarios', () => {
       beforeEach(() => {
@@ -87,7 +82,6 @@ describe('OTP Service', () => {
           expiryTime
         })
         mockUserContactService.storeVerificationDetails.mockResolvedValue()
-        notifyService.sendOTPSMS.mockResolvedValue({ notificationId })
       })
 
       it('should generate OTP successfully', async () => {
@@ -100,24 +94,18 @@ describe('OTP Service', () => {
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
-        expect(notifyService.sendOTPSMS).toHaveBeenCalledWith(
-          normalizedPhone,
-          otp
-        )
-        expect(mockLogger.info).toHaveBeenCalledWith('OTP generated and sent', {
-          phoneNumber: normalizedPhone,
-          notificationId
+        expect(mockLogger.info).toHaveBeenCalledWith('OTP generated', {
+          phoneNumber: normalizedPhone
         })
         expect(result).toEqual({
           normalizedPhoneNumber: normalizedPhone,
-          notificationId
+          otp
         })
       })
 
       it('should handle successful generation with all steps', async () => {
         const result = await otpService.generate(phoneNumber)
 
-        // Verify all functions were called (order is implicitly tested by the service logic)
         expect(validateAndNormalizeUKPhoneNumber).toHaveBeenCalledWith(
           phoneNumber
         )
@@ -125,14 +113,10 @@ describe('OTP Service', () => {
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
-        expect(notifyService.sendOTPSMS).toHaveBeenCalledWith(
-          normalizedPhone,
-          otp
-        )
         expect(mockLogger.info).toHaveBeenCalled()
 
         expect(result.normalizedPhoneNumber).toBe(normalizedPhone)
-        expect(result.notificationId).toBe(notificationId)
+        expect(result.otp).toBe(otp)
       })
     })
 
@@ -152,7 +136,6 @@ describe('OTP Service', () => {
         expect(
           mockUserContactService.storeVerificationDetails
         ).not.toHaveBeenCalled()
-        expect(notifyService.sendOTPSMS).not.toHaveBeenCalled()
       })
 
       it('should handle database storage failure', async () => {
@@ -165,33 +148,15 @@ describe('OTP Service', () => {
           new Error('Database connection failed')
         )
 
-        await expect(otpService.generate(phoneNumber)).rejects.toThrow(
-          'Database connection failed'
+        const result = await otpService.generate(phoneNumber)
+
+        expect(result).toEqual({ error: 'Failed to generate OTP' })
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          'Failed to generate OTP',
+          {
+            error: 'Database connection failed'
+          }
         )
-
-        expect(notifyService.sendOTPSMS).not.toHaveBeenCalled()
-        expect(mockLogger.info).not.toHaveBeenCalled()
-      })
-
-      it('should handle SMS sending failure', async () => {
-        validateAndNormalizeUKPhoneNumber.mockReturnValue({
-          isValid: true,
-          normalized: normalizedPhone
-        })
-        generateOTPWithExpiry.mockReturnValue({ otp, expiryTime })
-        mockUserContactService.storeVerificationDetails.mockResolvedValue()
-        notifyService.sendOTPSMS.mockRejectedValue(
-          new Error('SMS service unavailable')
-        )
-
-        await expect(otpService.generate(phoneNumber)).rejects.toThrow(
-          'SMS service unavailable'
-        )
-
-        expect(
-          mockUserContactService.storeVerificationDetails
-        ).toHaveBeenCalled()
-        expect(mockLogger.info).not.toHaveBeenCalled()
       })
     })
   })
@@ -274,11 +239,15 @@ describe('OTP Service', () => {
           new Error('Database query failed')
         )
 
-        await expect(otpService.validate(phoneNumber, otp)).rejects.toThrow(
-          'Database query failed'
-        )
+        const result = await otpService.validate(phoneNumber, otp)
 
-        expect(mockLogger.info).not.toHaveBeenCalled()
+        expect(result).toEqual({ error: 'Failed to validate OTP' })
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          'Failed to validate OTP',
+          {
+            error: 'Database query failed'
+          }
+        )
       })
     })
   })
@@ -297,11 +266,10 @@ describe('OTP Service', () => {
         normalized: '+447123456789'
       })
       generateOTPWithExpiry.mockReturnValue({
-        otp: '123456',
+        otp: '12345',
         expiryTime: new Date()
       })
       mockUserContactService.storeVerificationDetails.mockResolvedValue()
-      notifyService.sendOTPSMS.mockResolvedValue({ notificationId: 'test' })
 
       await otpService.generate('07123456789')
 

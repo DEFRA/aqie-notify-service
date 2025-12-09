@@ -1,5 +1,7 @@
 import Boom from '@hapi/boom'
 import { createOtpService } from '../services/otp.service.js'
+import { createNotificationService } from '../services/notify-service.js'
+import { config } from '../../config.js'
 
 // Define HTTP status codes as constants
 const HTTP_STATUS_CREATED = 201
@@ -13,23 +15,30 @@ async function generateOtpHandler(request, h) {
     if (result.error) {
       return Boom.badRequest(result.error)
     }
-    // Expect otpService.generate to supply a notificationId (ensure service returns it)
-    const { notificationId } = result
 
-    if (!notificationId) {
-      // Fallback if service not yet returning id
-      request.logger.warn('OTP generated but notificationId missing')
-      return h.response({ status: 'submitted' }).code(HTTP_STATUS_CREATED)
+    const { normalizedPhoneNumber, otp } = result
+
+    // Send notification via service
+    try {
+      const notificationService = createNotificationService()
+      const { notificationId } = await notificationService.sendSms(
+        normalizedPhoneNumber,
+        config.get('notify.templateId'),
+        { [config.get('notify.otpPersonalisationKey')]: otp }
+      )
+      return h
+        .response({ notificationId, status: 'submitted' })
+        .code(HTTP_STATUS_CREATED)
+    } catch (error_) {
+      request.logger.error('Failed to send notification', {
+        error: error_.message
+      })
+      return h
+        .response({ status: 'otp_generated_notification_failed' })
+        .code(HTTP_STATUS_CREATED)
     }
-    // return h.response().code(204)
-    return h
-      .response({ notificationId, status: 'submitted' })
-      .code(HTTP_STATUS_CREATED)
   } catch (err) {
     request.logger.error('Failed to generate OTP', { error: err.message })
-    if (err.message.includes('Failed to send SMS')) {
-      return Boom.failedDependency('Failed to send SMS')
-    }
     return Boom.internal('Failed to generate OTP')
   }
 }

@@ -7,7 +7,7 @@ const logger = createLogger()
  * Collection: user-contact-details
  * Document shape:
  * {
- *   contact: string,             // normalized phone (+447...) or lowercased email       // verification mechanism
+ *   contact: string,             // normalized phone (+447...) or lowercased email
  *   secret: string,              // OTP (phone) or token (email link)
  *   expiryTime: Date,
  *   validated: boolean,
@@ -15,8 +15,11 @@ const logger = createLogger()
  *   updatedAt: Date
  * }
  */
-
 class UserContactService {
+  /**
+   * Creates a new UserContactService instance
+   * @param {object} db - MongoDB database instance
+   */
   constructor(db) {
     this.db = db
     this.collection = db.collection('user-contact-details')
@@ -102,7 +105,7 @@ class UserContactService {
       }
 
       // Mark secret as validated
-      await this.collection.updateOne(
+      const updateResult = await this.collection.updateOne(
         { contact },
         {
           $set: {
@@ -111,6 +114,10 @@ class UserContactService {
           }
         }
       )
+
+      if (updateResult.modifiedCount === 0) {
+        throw new Error('Failed to mark secret as validated')
+      }
 
       logger.info(`Secret validated successfully for ${contact}`)
 
@@ -133,7 +140,10 @@ class UserContactService {
    */
   async getUserByContact(contact) {
     try {
-      return await this.collection.findOne({ contact })
+      logger.info(`Retrieving user by contact ${contact}`)
+      const result = await this.collection.findOne({ contact })
+      logger.info(`User lookup completed for ${contact}`, { found: !!result })
+      return result
     } catch (error) {
       logger.error(`Failed to get user by contact ${contact}`, {
         error: error.message
@@ -148,6 +158,29 @@ class UserContactService {
    */
   async cleanupExpiredsecrets() {
     try {
+      /**
+       * TODO: Add cleanup job to your server startup:
+       * In server.js or index.js
+       * setInterval(async () => {
+          const userContactService = createUserContactService(db)
+          await userContactService.cleanupExpiredsecrets()
+          }, 24 * 60 * 60 * 1000) // Daily cleanup
+       */
+      /**
+       * const result = await this.collection.deleteMany({
+       *   expiryTime: { $lt: new Date() },
+       *   validated: false  // ← Only deletes expired AND unvalidated
+       * })
+       */
+      /**
+       * Alternative: Delete all expired OR validated secrets
+       * const result = await this.collection.deleteMany({
+       *   $or: [
+       *     { expiryTime: { $lt: new Date() } }, // All expired
+       *     { validated: true } // All validated (regardless of expiry)
+       *   ]
+       * })
+       */
       const result = await this.collection.deleteMany({
         expiryTime: { $lt: new Date() },
         validated: false

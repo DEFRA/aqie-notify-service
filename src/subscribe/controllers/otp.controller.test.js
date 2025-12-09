@@ -1,15 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { generateOtpHandler, validateOtpHandler } from './otp.controller.js'
 import { createOtpService } from '../services/otp.service.js'
+import { createNotificationService } from '../services/notify-service.js'
 
-// Mock the service factory - moved after imports
 const mockOtpService = {
   generate: vi.fn(),
   validate: vi.fn()
 }
 
+const mockNotificationService = {
+  sendSms: vi.fn()
+}
+
 vi.mock('../services/otp.service.js', () => ({
-  createOtpService: vi.fn(() => mockOtpService) //  Factory returns service instance
+  createOtpService: vi.fn(() => mockOtpService)
+}))
+
+vi.mock('../services/notify-service.js', () => ({
+  createNotificationService: vi.fn(() => mockNotificationService)
+}))
+
+vi.mock('../../config.js', () => ({
+  config: {
+    get: vi.fn((key) => {
+      if (key === 'notify.templateId') return 'template-123'
+      if (key === 'notify.otpPersonalisationKey') return 'code'
+      return null
+    })
+  }
 }))
 
 describe('OTP Controller', () => {
@@ -49,11 +67,14 @@ describe('OTP Controller', () => {
     })
 
     describe('Success scenarios', () => {
-      it('should generate OTP successfully with notificationId', async () => {
-        // Mock successful service response
+      it('should generate OTP and send SMS successfully', async () => {
         mockOtpService.generate.mockResolvedValue({
-          notificationId: 'notification-123',
-          success: true
+          normalizedPhoneNumber: '+447123456789',
+          otp: '12345'
+        })
+
+        mockNotificationService.sendSms.mockResolvedValue({
+          notificationId: 'notification-123'
         })
 
         mockH.response.mockReturnValue(mockH)
@@ -66,6 +87,12 @@ describe('OTP Controller', () => {
 
         expect(createOtpService).toHaveBeenCalledWith(mockDb, mockLogger)
         expect(mockOtpService.generate).toHaveBeenCalledWith('07123456789')
+        expect(createNotificationService).toHaveBeenCalled()
+        expect(mockNotificationService.sendSms).toHaveBeenCalledWith(
+          '+447123456789',
+          'template-123',
+          { code: '12345' }
+        )
         expect(mockH.response).toHaveBeenCalledWith({
           notificationId: 'notification-123',
           status: 'submitted'
@@ -77,23 +104,30 @@ describe('OTP Controller', () => {
         })
       })
 
-      it('should handle missing notificationId gracefully', async () => {
-        // Mock service response without notificationId
+      it('should handle notification failure gracefully', async () => {
         mockOtpService.generate.mockResolvedValue({
-          success: true
-          // no notificationId
+          normalizedPhoneNumber: '+447123456789',
+          otp: '12345'
         })
 
-        mockH.response.mockReturnValue(mockH)
-        mockH.code.mockReturnValue({ status: 'submitted' })
+        mockNotificationService.sendSms.mockRejectedValue(
+          new Error('Notify service unavailable')
+        )
 
-        // FIXED: Removed unused result assignment (was line 90)
+        mockH.response.mockReturnValue(mockH)
+        mockH.code.mockReturnValue({
+          status: 'otp_generated_notification_failed'
+        })
+
         await generateOtpHandler(mockRequest, mockH)
 
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-          'OTP generated but notificationId missing'
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          'Failed to send notification',
+          { error: 'Notify service unavailable' }
         )
-        expect(mockH.response).toHaveBeenCalledWith({ status: 'submitted' })
+        expect(mockH.response).toHaveBeenCalledWith({
+          status: 'otp_generated_notification_failed'
+        })
         expect(mockH.code).toHaveBeenCalledWith(201)
       })
     })
@@ -110,22 +144,7 @@ describe('OTP Controller', () => {
         expect(result.output.statusCode).toBe(400) // badRequest
       })
 
-      it('should handle SMS failure exception', async () => {
-        mockOtpService.generate.mockRejectedValue(
-          new Error('Failed to send SMS')
-        )
-
-        const result = await generateOtpHandler(mockRequest, mockH)
-
-        expect(mockLogger.error).toHaveBeenCalledWith(
-          'Failed to generate OTP',
-          { error: 'Failed to send SMS' }
-        )
-        expect(result.isBoom).toBe(true)
-        expect(result.output.statusCode).toBe(424) // failedDependency
-      })
-
-      it('should handle general exception', async () => {
+      it('should handle OTP generation exception', async () => {
         mockOtpService.generate.mockRejectedValue(new Error('Database error'))
 
         const result = await generateOtpHandler(mockRequest, mockH)
@@ -135,7 +154,7 @@ describe('OTP Controller', () => {
           { error: 'Database error' }
         )
         expect(result.isBoom).toBe(true)
-        expect(result.output.statusCode).toBe(500) // internal
+        expect(result.output.statusCode).toBe(500)
       })
     })
   })
