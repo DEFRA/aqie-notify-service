@@ -1,15 +1,16 @@
 # Subscribe Endpoints
 
 This service provides phone number verification using a 5‑digit OTP (One-Time Password) sent via GOV.UK Notify.
-The service now also uses a generic verification store that can support future email link verification.
+The service also supports generic notification sending via SMS and email.
 
 ## Environment Variables
 
 ```bash
 NOTIFY_API_KEY=your-notify-api-key
 NOTIFY_TEMPLATE_ID=your-sms-template-id
-NOTIFY_OTP_PERSONALISATION_KEY=otp_code            # matches placeholder in Notify template
-NOTIFY_TIMEOUT_MS=8000                             # optional
+NOTIFY_EMAIL_TEMPLATE_ID=your-email-template-id
+NOTIFY_OTP_PERSONALISATION_KEY=code                # matches placeholder in Notify template
+NOTIFY_TIMEOUT_MS=15000                            # optional
 MONGO_URI=mongodb://localhost:27017/
 MONGO_DATABASE=aqie-notify-service
 ```
@@ -20,7 +21,7 @@ MONGO_DATABASE=aqie-notify-service
 
 POST /subscribe/generate-otp
 
-Generates a cryptographically secure 5‑digit OTP for the supplied UK mobile number, stores it with a 24‑hour expiry, and submits an SMS send request to GOV.UK Notify.
+Generates a cryptographically secure 5‑digit OTP for the supplied UK mobile number, stores it with a 30-minute expiry, and submits an SMS send request to GOV.UK Notify.
 
 #### Request Body
 
@@ -150,14 +151,70 @@ curl -X POST http://localhost:3001/subscribe/validate-otp \
   -d '{"phoneNumber":"07123456789","otp":"12345"}'
 ```
 
+### 3. Send Generic Notification
+
+POST /send-notification
+
+Sends a generic notification via SMS or Email using GOV.UK Notify.
+
+#### Request Body
+
+```json
+{
+  "phoneNumber": "07123456789",
+  "templateId": "your-template-id",
+  "personalisation": {
+    "name": "John Doe",
+    "code": "12345"
+  }
+}
+```
+
+Or for email:
+
+```json
+{
+  "emailAddress": "user@example.com",
+  "templateId": "your-email-template-id",
+  "personalisation": {
+    "name": "John Doe",
+    "verification_link": "https://example.com/verify"
+  }
+}
+```
+
+#### Success Response (201 Created)
+
+```json
+{
+  "notificationId": "cc468012-f444-4a02-ae44-09fc5dbaa0cc",
+  "status": "submitted"
+}
+```
+
+#### Error Responses
+
+400 Bad Request – Missing phoneNumber/emailAddress or invalid data
+424 Failed Dependency – Notify service failure
+
+#### Curl Example
+
+```bash
+curl -X POST http://localhost:3001/send-notification \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phoneNumber":"07123456789",
+    "templateId":"your-template-id",
+    "personalisation":{"code":"12345"}
+  }'
+```
+
 ## OTP Characteristics
 
 - Length: 5 digits (10000–99999)
 - Generation: crypto.randomInt (cryptographically secure)
-- Default Expiry: 24 hours (previously 10 minutes)
+- Default Expiry: 30 minutes
 - One-Time Use: Marked validated after first successful verification
-
-If you changed the expiry from 10 minutes to 24 hours, update your Notify SMS template text accordingly.
 
 ## Notify Integration Notes
 
@@ -184,43 +241,46 @@ Example internal (not returned to client):
 
 ## Database Schema
 
-Collection (generic): user-contact-verifications
-
-Phone OTP rows use:
+Collection: user-contact-details
 
 ```javascript
 {
-  contactType: 'phone',          // future-proof (email link support later)
-  contact: '+447123456789',      // normalized E.164
-  mode: 'otp',                   // verification mechanism
-  secret: '12345',               // the OTP (consider hashing later)
-  expiryTime: Date,              // ~24h after creation
+  contact: '+447123456789',      // normalized phone (+44...) or lowercased email
+  secret: '12345',               // OTP (phone) or token (email link)
+  expiryTime: Date,              // 30 minutes after creation
   validated: false,
   createdAt: Date,
-  updatedAt: Date,
-  validatedAt: Date | null
+  updatedAt: Date
 }
 ```
 
 Indexes:
 
-- Unique: (contactType, contact)
-- Lookup: secret (for future email token mode)
-- Cleanup: expiryTime + validated
+- Unique: contact
+- Cleanup: expiryTime
+- Performance: validated
 
 ## Validation (Joi Examples)
 
 ```javascript
 // generate-otp payload
 {
-  phoneNumber: Joi.string().required()
+  phoneNumber: Joi.string().required().min(10).max(15).pattern(/^[\+\d\s\-\(\)]+$/)
 }
 
 // validate-otp payload
 {
-  phoneNumber: Joi.string().required(),
-  otp: Joi.string().pattern(/^[0-9]{5}$/).required()
+  phoneNumber: Joi.string().required().min(10).max(15).pattern(/^[\+\d\s\-\(\)]+$/),
+  otp: Joi.string().required().length(5).pattern(/^\d{5}$/)
 }
+
+// send-notification payload
+{
+  phoneNumber: Joi.string().optional(),
+  emailAddress: Joi.string().email().optional(),
+  templateId: Joi.string().required(),
+  personalisation: Joi.object().required()
+}.or('phoneNumber', 'emailAddress')
 ```
 
 ## Security Features
@@ -234,23 +294,30 @@ Indexes:
 ## Testing Focus
 
 - Phone number normalization
-- OTP expiry logic (24h)
+- OTP expiry logic (30 minutes)
 - Single-use enforcement
 - Notify send failure mapping to 424
 - Validation errors (400)
 
-## Planned Extension (Email Link Verification)
+## Logging and Debugging
 
-The storage model already supports:
+All endpoints include comprehensive logging with:
 
-- contactType: 'email'
-- mode: 'link'
-- secret: random token (e.g. 32 hex chars)
-  Future endpoints would:
-- POST /subscribe/generate-email-link
-- GET /subscribe/verify-email?token=...
+- Request IDs for tracing complete user journeys
+- Operation IDs for service-level debugging
+- Masked sensitive data (phone numbers, emails)
+- Detailed error information with stack traces
+- Performance timing information
 
-(These are not yet exposed.)
+### Log Examples
+
+```
+[16:06:06.718] INFO: notification.send.requested [req_123] SMS to ***586 template=abc-123
+[16:06:06.718] INFO: notification.send.start [req_123] type=sms
+[16:06:06.720] INFO: notify.send_sms.start [sms_456] template=abc-123 phone=xxx586
+[16:06:07.343] INFO: notify.send_sms.success [sms_456] notificationId=0118bf31-6f96-4dfa-9746
+[16:06:07.343] INFO: notification.send.success [req_123] notificationId=0118bf31-6f96-4dfa-9746 type=sms
+```
 
 ## OpenAPI (Excerpt)
 
@@ -260,15 +327,7 @@ paths:
     post:
       summary: Generate and send an OTP to a phone number
       responses:
-        '201':
-          description: OTP generated and submission accepted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  notificationId: { type: string, format: uuid }
-                  status: { type: string, enum: [submitted] }
+        '201': { description: OTP generated and SMS submitted }
         '400': { description: Invalid input }
         '424': { description: Downstream Notify failure }
         '500': { description: Internal error }
@@ -276,21 +335,30 @@ paths:
     post:
       summary: Validate an OTP for a phone number
       responses:
-        '200':
-          description: OTP validated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string }
+        '200': { description: OTP validated successfully }
         '400': { description: Validation / functional error }
+        '500': { description: Internal error }
+ate and send email verification link
+      responses:
+        '201': { description: Email verification link sent }
+        '400': { description: Invalid input }
+        '500': { description: Internal error }
+  /send-notification:
+    post:
+      summary: Send generic notification via SMS or Email
+      responses:
+        '201': { description: Notification submitted }
+        '400': { description: Invalid input }
+        '424': { description: Downstream Notify failure }
         '500': { description: Internal error }
 ```
 
 ## Change Log (Recent)
 
-- Added 201 Created response with notificationId (replaced previous 204)
-- Introduced generic user-contact-verifications schema
-- Extended error handling with NotifySmsError classification
-- Increased default OTP expiry from 10 minutes to 24
+- Added email verification link endpoint (/subscribe/generate-link)
+- Added generic notification endpoint (/send-notification)
+- Implemented comprehensive logging with request/operation IDs
+- Added data masking for security (phone numbers, emails)
+- Updated database schema to user-contact-details collection
+- Enhanced error handling with detailed stack traces
+- Added performance monitoring and timing information

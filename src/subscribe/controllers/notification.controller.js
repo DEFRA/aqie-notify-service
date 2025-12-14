@@ -1,11 +1,30 @@
 import { createNotificationService } from '../services/notify-service.js'
 import Boom from '@hapi/boom'
+import {
+  maskMsisdn,
+  maskEmail,
+  maskTemplateId,
+  generateOperationId
+} from '../../common/helpers/masking-utils.js'
 
 const HTTP_STATUS_CREATED = 201
 
 export async function sendNotificationHandler(request, h) {
+  const requestId =
+    request.headers['x-cdp-request-id'] ||
+    request.info.id ||
+    generateOperationId('req')
   const { phoneNumber, emailAddress, templateId, personalisation } =
     request.payload
+
+  request.logger.info(
+    `notification.send.requested [${requestId}] ${phoneNumber ? 'SMS to ' + maskMsisdn(phoneNumber) : 'EMAIL to ' + (emailAddress ? maskEmail(emailAddress) : 'unknown')} template=${maskTemplateId(templateId)}`,
+    {
+      requestId,
+      contactType: phoneNumber ? 'sms' : 'email',
+      templateId: maskTemplateId(templateId)
+    }
+  )
 
   try {
     const notificationService = createNotificationService()
@@ -13,7 +32,17 @@ export async function sendNotificationHandler(request, h) {
       phoneNumber,
       emailAddress,
       templateId,
-      personalisation
+      personalisation,
+      requestId
+    )
+
+    request.logger.info(
+      `notification.send.success [${requestId}] notificationId=${response.notificationId}`,
+      {
+        requestId,
+        notificationId: response.notificationId,
+        contactType: phoneNumber ? 'sms' : 'email'
+      }
     )
 
     return h
@@ -23,7 +52,12 @@ export async function sendNotificationHandler(request, h) {
       })
       .code(HTTP_STATUS_CREATED)
   } catch (err) {
-    request.logger.error('Failed to send notification', { error: err.message })
+    request.logger.error(`notification.send.failed [${requestId}]`, {
+      requestId,
+      error: err.message,
+      contactType: phoneNumber ? 'sms' : 'email',
+      templateId: maskTemplateId(templateId)
+    })
     return Boom.failedDependency('Failed to send notification')
   }
 }
