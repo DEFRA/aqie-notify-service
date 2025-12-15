@@ -3,7 +3,7 @@ import { generateOTPWithExpiry } from '../../common/helpers/otp-generator.js'
 import { createUserContactService } from './user-contact-service.js'
 
 // Define constants for clarity
-const OTP_EXPIRY_MINUTES = 30 // 30 minutes expiry
+const OTP_EXPIRY_MINUTES = 15 // 15 minutes expiry
 
 function createOtpService(db, logger) {
   const userContactService = createUserContactService(db, logger)

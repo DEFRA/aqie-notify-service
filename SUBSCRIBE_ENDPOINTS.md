@@ -21,7 +21,7 @@ MONGO_DATABASE=aqie-notify-service
 
 POST /subscribe/generate-otp
 
-Generates a cryptographically secure 5‑digit OTP for the supplied UK mobile number, stores it with a 30-minute expiry, and submits an SMS send request to GOV.UK Notify.
+Generates a cryptographically secure 5‑digit OTP for the supplied UK mobile number, stores it with a 15-minute expiry, and submits an SMS send request to GOV.UK Notify.
 
 #### Request Body
 
@@ -213,7 +213,7 @@ curl -X POST http://localhost:3001/send-notification \
 
 - Length: 5 digits (10000–99999)
 - Generation: crypto.randomInt (cryptographically secure)
-- Default Expiry: 30 minutes
+- Default Expiry: 15 minutes
 - One-Time Use: Marked validated after first successful verification
 
 ## Notify Integration Notes
@@ -247,7 +247,7 @@ Collection: user-contact-details
 {
   contact: '+447123456789',      // normalized phone (+44...) or lowercased email
   secret: '12345',               // OTP (phone) or token (email link)
-  expiryTime: Date,              // 30 minutes after creation
+  expiryTime: Date,              // 15 minutes after creation
   validated: false,
   createdAt: Date,
   updatedAt: Date
@@ -288,13 +288,13 @@ Indexes:
 - Normalization of phone numbers
 - Cryptographically secure OTP generation
 - One-time use semantics
-- Expiry enforcement
+- Expiry enforcement (15 minutes)
 - Structured error handling (no leaking upstream internals)
 
 ## Testing Focus
 
 - Phone number normalization
-- OTP expiry logic (30 minutes)
+- OTP expiry logic (15 minutes)
 - Single-use enforcement
 - Notify send failure mapping to 424
 - Validation errors (400)

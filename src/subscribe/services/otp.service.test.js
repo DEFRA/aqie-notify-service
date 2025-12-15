@@ -90,7 +90,7 @@ describe('OTP Service', () => {
         expect(validateAndNormalizeUKPhoneNumber).toHaveBeenCalledWith(
           phoneNumber
         )
-        expect(generateOTPWithExpiry).toHaveBeenCalledWith(30)
+        expect(generateOTPWithExpiry).toHaveBeenCalledWith(15)
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
@@ -109,7 +109,7 @@ describe('OTP Service', () => {
         expect(validateAndNormalizeUKPhoneNumber).toHaveBeenCalledWith(
           phoneNumber
         )
-        expect(generateOTPWithExpiry).toHaveBeenCalledWith(30)
+        expect(generateOTPWithExpiry).toHaveBeenCalledWith(15)
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
@@ -260,7 +260,7 @@ describe('OTP Service', () => {
       expect(createUserContactService).toHaveBeenCalled()
     })
 
-    it('should use 24-hour expiry for OTP generation', async () => {
+    it('should use 15-minute expiry for OTP generation', async () => {
       validateAndNormalizeUKPhoneNumber.mockReturnValue({
         isValid: true,
         normalized: '+447123456789'
@@ -273,7 +273,7 @@ describe('OTP Service', () => {
 
       await otpService.generate('07123456789')
 
-      expect(generateOTPWithExpiry).toHaveBeenCalledWith(30) // 30 minutes
+      expect(generateOTPWithExpiry).toHaveBeenCalledWith(15) // 15 minutes
     })
   })
 
