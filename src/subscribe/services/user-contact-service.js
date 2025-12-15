@@ -1,7 +1,5 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
-const logger = createLogger()
-
 /**
  * Service for managing user contact details in MongoDB
  * Collection: user-contact-details
@@ -19,9 +17,11 @@ class UserContactService {
   /**
    * Creates a new UserContactService instance
    * @param {object} db - MongoDB database instance
+   * @param {object} logger - Logger instance
    */
-  constructor(db) {
+  constructor(db, logger) {
     this.db = db
+    this.logger = logger || createLogger()
     this.collection = db.collection('user-contact-details')
   }
 
@@ -33,6 +33,14 @@ class UserContactService {
    * @returns {Promise<object>} - Database operation result
    */
   async storeVerificationDetails(contact, secret, expiryTime) {
+    const operationId = `store_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    this.logger.info('user_contact.store.start', {
+      operationId,
+      contact: contact ? '***' + contact.slice(-3) : 'undefined',
+      expiryTime: expiryTime?.toISOString(),
+      secretLength: secret?.length
+    })
+
     try {
       const document = {
         contact,
@@ -43,14 +51,22 @@ class UserContactService {
         updatedAt: new Date()
       }
 
+      this.logger.info('user_contact.store.executing_upsert', {
+        operationId,
+        contact: '***' + contact.slice(-3)
+      })
+
       // Upsert the document (update if exists, insert if not)
       const result = await this.collection.replaceOne({ contact }, document, {
         upsert: true
       })
 
-      logger.info(`secret stored for phone number ${contact}`, {
+      this.logger.info('user_contact.store.success', {
+        operationId,
+        contact: '***' + contact.slice(-3),
         upserted: result.upsertedId !== null,
-        modified: result.modifiedCount > 0
+        modified: result.modifiedCount > 0,
+        matchedCount: result.matchedCount
       })
 
       return {
@@ -59,8 +75,12 @@ class UserContactService {
         modified: result.modifiedCount > 0
       }
     } catch (error) {
-      logger.error(`Failed to store secret for ${contact}`, {
-        error: error.message
+      this.logger.error('user_contact.store.error', {
+        operationId,
+        contact: '***' + contact.slice(-3),
+        error: error.message,
+        errorName: error.name,
+        stack: error.stack
       })
       throw new Error(`Failed to store secret: ${error.message}`)
     }
@@ -73,24 +93,60 @@ class UserContactService {
    * @returns {Promise<object>} - Validation result
    */
   async validateSecret(contact, secret) {
+    const operationId = `validate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    this.logger.info('user_contact.validate.start', {
+      operationId,
+      contact: contact ? '***' + contact.slice(-3) : 'undefined',
+      secretLength: secret?.length
+    })
+
     try {
+      this.logger.info('user_contact.validate.finding_document', {
+        operationId,
+        contact: '***' + contact.slice(-3)
+      })
+
       const document = await this.collection.findOne({ contact })
 
       if (!document) {
+        this.logger.warn('user_contact.validate.document_not_found', {
+          operationId,
+          contact: '***' + contact.slice(-3)
+        })
         return {
           valid: false,
           error: 'Contact Detail not found'
         }
       }
 
+      this.logger.info('user_contact.validate.document_found', {
+        operationId,
+        contact: '***' + contact.slice(-3),
+        documentCreatedAt: document.createdAt?.toISOString(),
+        documentExpiryTime: document.expiryTime?.toISOString(),
+        documentValidated: document.validated
+      })
+
       if (document.secret !== secret) {
+        this.logger.warn('user_contact.validate.secret_mismatch', {
+          operationId,
+          contact: '***' + contact.slice(-3)
+        })
         return {
           valid: false,
           error: 'Invalid secret'
         }
       }
 
-      if (new Date() > new Date(document.expiryTime)) {
+      const now = new Date()
+      const expiryTime = new Date(document.expiryTime)
+      if (now > expiryTime) {
+        this.logger.warn('user_contact.validate.secret_expired', {
+          operationId,
+          contact: '***' + contact.slice(-3),
+          currentTime: now.toISOString(),
+          expiryTime: expiryTime.toISOString()
+        })
         return {
           valid: false,
           error: 'Secret has expired'
@@ -98,11 +154,20 @@ class UserContactService {
       }
 
       if (document.validated) {
+        this.logger.warn('user_contact.validate.secret_already_used', {
+          operationId,
+          contact: '***' + contact.slice(-3)
+        })
         return {
           valid: false,
           error: 'Secret has already been used'
         }
       }
+
+      this.logger.info('user_contact.validate.marking_as_validated', {
+        operationId,
+        contact: '***' + contact.slice(-3)
+      })
 
       // Mark secret as validated
       const updateResult = await this.collection.updateOne(
@@ -116,18 +181,31 @@ class UserContactService {
       )
 
       if (updateResult.modifiedCount === 0) {
+        this.logger.error('user_contact.validate.failed_to_mark_validated', {
+          operationId,
+          contact: '***' + contact.slice(-3),
+          matchedCount: updateResult.matchedCount,
+          modifiedCount: updateResult.modifiedCount
+        })
         throw new Error('Failed to mark secret as validated')
       }
 
-      logger.info(`Secret validated successfully for ${contact}`)
+      this.logger.info('user_contact.validate.success', {
+        operationId,
+        contact: '***' + contact.slice(-3)
+      })
 
       return {
         valid: true,
         error: null
       }
     } catch (error) {
-      logger.error(`Failed to validate secret for ${contact}`, {
-        error: error.message
+      this.logger.error('user_contact.validate.error', {
+        operationId,
+        contact: '***' + contact.slice(-3),
+        error: error.message,
+        errorName: error.name,
+        stack: error.stack
       })
       throw new Error(`Failed to validate secret: ${error.message}`)
     }
@@ -139,14 +217,31 @@ class UserContactService {
    * @returns {Promise<object|null>} - User contact details or null if not found
    */
   async getUserByContact(contact) {
+    const operationId = `get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    this.logger.info('user_contact.get.start', {
+      operationId,
+      contact: contact ? '***' + contact.slice(-3) : 'undefined'
+    })
+
     try {
-      logger.info(`Retrieving user by contact ${contact}`)
       const result = await this.collection.findOne({ contact })
-      logger.info(`User lookup completed for ${contact}`, { found: !!result })
+
+      this.logger.info('user_contact.get.completed', {
+        operationId,
+        contact: '***' + contact.slice(-3),
+        found: !!result,
+        documentCreatedAt: result?.createdAt?.toISOString(),
+        documentValidated: result?.validated
+      })
+
       return result
     } catch (error) {
-      logger.error(`Failed to get user by contact ${contact}`, {
-        error: error.message
+      this.logger.error('user_contact.get.error', {
+        operationId,
+        contact: '***' + contact.slice(-3),
+        error: error.message,
+        errorName: error.name,
+        stack: error.stack
       })
       throw new Error(`Failed to get user: ${error.message}`)
     }
@@ -186,10 +281,10 @@ class UserContactService {
         validated: false
       })
 
-      logger.info(`Cleaned up ${result.deletedCount} expired secrets`)
+      this.logger.info(`Cleaned up ${result.deletedCount} expired secrets`)
       return result.deletedCount
     } catch (error) {
-      logger.error('Failed to cleanup expired secrets', {
+      this.logger.error('Failed to cleanup expired secrets', {
         error: error.message
       })
       throw new Error(`Failed to cleanup expired secrets: ${error.message}`)
@@ -200,10 +295,11 @@ class UserContactService {
 /**
  * Factory function to create UserContactService instance
  * @param {object} db - MongoDB database instance
+ * @param {object} logger - Logger instance
  * @returns {UserContactService} - UserContactService instance
  */
-function createUserContactService(db) {
-  return new UserContactService(db)
+function createUserContactService(db, logger) {
+  return new UserContactService(db, logger)
 }
 
 export { UserContactService, createUserContactService }

@@ -55,6 +55,8 @@ describe('OTP Controller', () => {
   describe('generateOtpHandler', () => {
     const mockRequest = {
       payload: { phoneNumber: '07123456789' },
+      headers: { 'x-cdp-request-id': 'test-request-id' },
+      info: { id: 'test-request-id' },
       logger: mockLogger,
       db: mockDb // 👈 Controller needs db
     }
@@ -122,8 +124,14 @@ describe('OTP Controller', () => {
         await generateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'Failed to send notification',
-          { error: 'Notify service unavailable' }
+          'otp.generate.notification_failed',
+          expect.objectContaining({
+            error: 'Notify service unavailable',
+            errorName: 'Error',
+            normalizedPhoneNumber: '***789',
+            requestId: 'test-request-id',
+            stack: expect.stringContaining('Error: Notify service unavailable')
+          })
         )
         expect(mockH.response).toHaveBeenCalledWith({
           status: 'otp_generated_notification_failed'
@@ -150,8 +158,13 @@ describe('OTP Controller', () => {
         const result = await generateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'Failed to generate OTP',
-          { error: 'Database error' }
+          'otp.generate.unexpected_error',
+          expect.objectContaining({
+            error: 'Database error',
+            errorName: 'Error',
+            requestId: 'test-request-id',
+            stack: expect.stringContaining('Error: Database error')
+          })
         )
         expect(result.isBoom).toBe(true)
         expect(result.output.statusCode).toBe(500)
@@ -165,6 +178,8 @@ describe('OTP Controller', () => {
         phoneNumber: '07123456789',
         otp: '12345'
       },
+      headers: { 'x-cdp-request-id': 'test-request-id' },
+      info: { id: 'test-request-id' },
       logger: mockLogger,
       db: mockDb // Controller needs db
     }
@@ -221,8 +236,13 @@ describe('OTP Controller', () => {
         const result = await validateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'Failed to validate OTP',
-          { error: 'Database error' }
+          'otp.validate.unexpected_error',
+          expect.objectContaining({
+            error: 'Database error',
+            errorName: 'Error',
+            requestId: 'test-request-id',
+            stack: expect.stringContaining('Error: Database error')
+          })
         )
         expect(result.isBoom).toBe(true)
         expect(result.output.statusCode).toBe(500) // internal

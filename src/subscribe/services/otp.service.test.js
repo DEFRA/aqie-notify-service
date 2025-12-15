@@ -49,7 +49,7 @@ describe('OTP Service', () => {
 
   describe('createOtpService', () => {
     it('should create service with db and logger', () => {
-      expect(createUserContactService).toHaveBeenCalledWith(mockDb)
+      expect(createUserContactService).toHaveBeenCalledWith(mockDb, mockLogger)
       expect(otpService).toBeDefined()
       expect(typeof otpService.generate).toBe('function')
       expect(typeof otpService.validate).toBe('function')
@@ -90,7 +90,7 @@ describe('OTP Service', () => {
         expect(validateAndNormalizeUKPhoneNumber).toHaveBeenCalledWith(
           phoneNumber
         )
-        expect(generateOTPWithExpiry).toHaveBeenCalledWith(1440) // 24 hours
+        expect(generateOTPWithExpiry).toHaveBeenCalledWith(15)
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
@@ -109,7 +109,7 @@ describe('OTP Service', () => {
         expect(validateAndNormalizeUKPhoneNumber).toHaveBeenCalledWith(
           phoneNumber
         )
-        expect(generateOTPWithExpiry).toHaveBeenCalledWith(1440)
+        expect(generateOTPWithExpiry).toHaveBeenCalledWith(15)
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
@@ -255,12 +255,12 @@ describe('OTP Service', () => {
   describe('Service Integration', () => {
     it('should properly initialize user contact service', () => {
       // Test the existing service from beforeEach - don't create another one
-      expect(createUserContactService).toHaveBeenCalledWith(mockDb)
+      expect(createUserContactService).toHaveBeenCalledWith(mockDb, mockLogger)
       // Since beforeEach runs once per test, we can expect it was called at least once
       expect(createUserContactService).toHaveBeenCalled()
     })
 
-    it('should use 24-hour expiry for OTP generation', async () => {
+    it('should use 15-minute expiry for OTP generation', async () => {
       validateAndNormalizeUKPhoneNumber.mockReturnValue({
         isValid: true,
         normalized: '+447123456789'
@@ -273,7 +273,7 @@ describe('OTP Service', () => {
 
       await otpService.generate('07123456789')
 
-      expect(generateOTPWithExpiry).toHaveBeenCalledWith(1440) // 24 hours in minutes
+      expect(generateOTPWithExpiry).toHaveBeenCalledWith(15) // 15 minutes
     })
   })
 

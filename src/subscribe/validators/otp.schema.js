@@ -1,4 +1,4 @@
-/* eslint-disable no-magic-numbers, no-useless-escape */
+/* eslint-disable no-useless-escape */
 
 import Joi from 'joi'
 

@@ -68,9 +68,30 @@ function normalizeUKPhoneNumber(phoneNumber) {
  * @returns {object} - Object containing isValid boolean and normalized number
  */
 function validateAndNormalizeUKPhoneNumber(phoneNumber) {
+  const operationId = `validate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+  // Simple console logging to avoid circular dependencies
+  console.log(`[${new Date().toISOString()}] phone.validate.start`, {
+    operationId,
+    phoneNumber: phoneNumber ? '***' + phoneNumber.slice(-3) : 'undefined',
+    phoneNumberLength: phoneNumber?.length
+  })
+
   const isValid = isValidUKPhoneNumber(phoneNumber)
 
+  console.log(
+    `[${new Date().toISOString()}] phone.validate.validation_result`,
+    {
+      operationId,
+      isValid
+    }
+  )
+
   if (!isValid) {
+    console.log(`[${new Date().toISOString()}] phone.validate.invalid_format`, {
+      operationId,
+      phoneNumber: phoneNumber ? '***' + phoneNumber.slice(-3) : 'undefined'
+    })
     return {
       isValid: false,
       normalized: null,
@@ -79,13 +100,30 @@ function validateAndNormalizeUKPhoneNumber(phoneNumber) {
   }
 
   try {
+    console.log(`[${new Date().toISOString()}] phone.validate.normalizing`, {
+      operationId
+    })
     const normalized = normalizeUKPhoneNumber(phoneNumber)
+
+    console.log(`[${new Date().toISOString()}] phone.validate.success`, {
+      operationId,
+      normalized: '***' + normalized.slice(-3)
+    })
+
     return {
       isValid: true,
       normalized,
       error: null
     }
   } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] phone.validate.normalization_error`,
+      {
+        operationId,
+        error: error.message,
+        errorName: error.name
+      }
+    )
     return {
       isValid: false,
       normalized: null,

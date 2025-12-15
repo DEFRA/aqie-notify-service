@@ -526,14 +526,14 @@ describe('Notify Service', () => {
 
         expect(mockLogger.error).toHaveBeenCalledWith(
           'notify.send_sms_generic.failure',
-          expect.objectContaining({
-            templateId: 'template-456',
+          {
+            category: 'unknown',
+            errorType: undefined,
+            originalError: 'Network timeout',
             phoneNumberMasked: 'xxxxxxxxxx789',
             statusCode: undefined,
-            errorType: undefined,
-            category: 'unknown',
-            originalError: 'Network timeout'
-          })
+            templateId: '******-456'
+          }
         )
       }, 10000)
     })
@@ -594,13 +594,16 @@ describe('Notify Service', () => {
 
         expect(mockLogger.error).toHaveBeenCalledWith(
           'notify.get_status.failure',
-          {
+          expect.objectContaining({
             notificationId: 'notification-123',
             statusCode: 404,
             errorType: 'NotFoundError',
             category: 'unknown',
-            retriable: false
-          }
+            retriable: false,
+            operationId: expect.stringMatching(/^status_\d+_[a-z0-9]+$/),
+            originalError: 'Not Found',
+            errorName: 'Error'
+          })
         )
       }, 10000)
     })

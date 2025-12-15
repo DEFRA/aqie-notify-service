@@ -142,11 +142,13 @@ describe('User Contact Service', () => {
       })
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        `secret stored for phone number ${contact}`,
-        {
+        'user_contact.store.success',
+        expect.objectContaining({
+          contact: '***789',
           upserted: true,
-          modified: false
-        }
+          modified: false,
+          operationId: expect.stringMatching(/^store_\d+_[a-z0-9]+$/)
+        })
       )
     })
 
@@ -177,11 +179,13 @@ describe('User Contact Service', () => {
       })
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'secret stored for phone number +447123456789',
-        {
+        'user_contact.store.success',
+        expect.objectContaining({
+          contact: '***789',
           upserted: false,
-          modified: true
-        }
+          modified: true,
+          operationId: expect.stringMatching(/^store_\d+_[a-z0-9]+$/)
+        })
       )
     })
 
@@ -203,10 +207,14 @@ describe('User Contact Service', () => {
       ).rejects.toThrow('Failed to store secret: Connection timeout')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to store secret for +447123456789',
-        {
-          error: 'Connection timeout'
-        }
+        'user_contact.store.error',
+        expect.objectContaining({
+          contact: '***789',
+          error: 'Connection timeout',
+          errorName: 'Error',
+          operationId: expect.stringMatching(/^store_\d+_[a-z0-9]+$/),
+          stack: expect.stringContaining('Error: Connection timeout')
+        })
       )
     })
   })
@@ -341,7 +349,11 @@ describe('User Contact Service', () => {
       )
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Secret validated successfully for +447123456789'
+        'user_contact.validate.success',
+        expect.objectContaining({
+          contact: '***789',
+          operationId: expect.stringMatching(/^validate_\d+_[a-z0-9]+$/)
+        })
       )
     })
 
@@ -361,10 +373,14 @@ describe('User Contact Service', () => {
       ).rejects.toThrow('Failed to validate secret: Database error')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to validate secret for +447123456789',
-        {
-          error: 'Database error'
-        }
+        'user_contact.validate.error',
+        expect.objectContaining({
+          contact: '***789',
+          error: 'Database error',
+          errorName: 'Error',
+          operationId: expect.stringMatching(/^validate_\d+_[a-z0-9]+$/),
+          stack: expect.stringContaining('Error: Database error')
+        })
       )
     })
   })
@@ -424,10 +440,14 @@ describe('User Contact Service', () => {
       )
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to get user by contact +447123456789',
-        {
-          error: 'Database connection lost'
-        }
+        'user_contact.get.error',
+        expect.objectContaining({
+          contact: '***789',
+          error: 'Database connection lost',
+          errorName: 'Error',
+          operationId: expect.stringMatching(/^get_\d+_[a-z0-9]+$/),
+          stack: expect.stringContaining('Error: Database connection lost')
+        })
       )
     })
   })

@@ -149,6 +149,12 @@ const config = convict({
       default: 'code',
       env: 'NOTIFY_OTP_PERSONALISATION_KEY'
     },
+    emailTemplateId: {
+      doc: 'GOV.UK Notify Email Template ID for verification link',
+      format: String,
+      default: 'email-template-id-placeholder',
+      env: 'NOTIFY_EMAIL_TEMPLATE_ID'
+    },
     timeoutMs: {
       doc: 'Timeout (ms) for sending Notify SMS before failing',
       format: 'nat',
