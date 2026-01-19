@@ -26,7 +26,7 @@ const config = convict({
   port: {
     doc: 'The port to bind',
     format: 'port',
-    default: 3001,
+    default: 3000,
     env: 'PORT'
   },
   serviceName: {
@@ -141,7 +141,7 @@ const config = convict({
       doc: 'GOV.UK Notify SMS Template ID for OTP',
       format: String,
       default: '33420172-8b38-4fc8-8bc0-0390a4099e24',
-      env: 'NOTIFY_TEMPLATE_ID'
+      env: 'NOTIFY_SMS_VERIFY_OTP_TEMPLATE_ID'
     },
     otpPersonalisationKey: {
       doc: 'Personalisation field name in the Notify template for the OTP code',
@@ -152,8 +152,8 @@ const config = convict({
     emailTemplateId: {
       doc: 'GOV.UK Notify Email Template ID for verification link',
       format: String,
-      default: 'email-template-id-placeholder',
-      env: 'NOTIFY_EMAIL_TEMPLATE_ID'
+      default: '315e1284-ff70-4ee5-b9fb-9c36596da4a3',
+      env: 'NOTIFY_EMAIL_VERIFY_LINK_TEMPLATE_ID'
     },
     timeoutMs: {
       doc: 'Timeout (ms) for sending Notify SMS before failing',

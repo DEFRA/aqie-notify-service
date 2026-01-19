@@ -151,7 +151,121 @@ curl -X POST http://localhost:3001/subscribe/validate-otp \
   -d '{"phoneNumber":"07123456789","otp":"12345"}'
 ```
 
-### 3. Send Generic Notification
+### 3. Generate Email Verification Link
+
+POST /subscribe/generate-link
+
+Generates a unique verification link for email subscription and sends it via email using GOV.UK Notify.
+
+#### Request Body
+
+```json
+{
+  "emailAddress": "user@example.com",
+  "alertType": "email",
+  "location": "staines",
+  "lat": 0.789,
+  "long": -0.876
+}
+```
+
+#### Success Response (201 Created)
+
+```json
+{
+  "message": "Link has been sent to email",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### Error Responses
+
+400 Bad Request – Invalid email format or missing required fields
+
+```json
+{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "message": "\"emailAddress\" must be a valid email"
+}
+```
+
+500 Internal Server Error – Unexpected server failure
+
+```json
+{
+  "statusCode": 500,
+  "error": "Internal Server Error",
+  "message": "Failed to generate verification link"
+}
+```
+
+#### Curl Example
+
+```bash
+curl -X POST http://localhost:3001/subscribe/generate-link \
+  -H "Content-Type: application/json" \
+  -d '{
+    "emailAddress":"user@example.com",
+    "alertType":"email",
+    "location":"staines",
+    "lat":0.789,
+    "long":-0.876
+  }'
+```
+
+### 4. Validate Email Verification Link
+
+GET /subscribe/validate-link/{uuid}
+
+Validates an email verification link using the UUID token and marks the subscription as verified.
+
+#### Path Parameters
+
+- `uuid`: The verification token from the email link
+
+#### Success Response (200 OK)
+
+```json
+{
+  "message": "Email validated successfully",
+  "emailAddress": "user@example.com",
+  "alertType": "email",
+  "location": "staines",
+  "lat": 0.789,
+  "long": -0.876
+}
+```
+
+#### Error Responses
+
+400 Bad Request – Invalid UUID, expired link, or already validated
+
+```json
+{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "message": "Verification link has expired"
+}
+```
+
+500 Internal Server Error – Unexpected server failure
+
+```json
+{
+  "statusCode": 500,
+  "error": "Internal Server Error",
+  "message": "Failed to validate link"
+}
+```
+
+#### Curl Example
+
+```bash
+curl -X GET http://localhost:3001/subscribe/validate-link/550e8400-e29b-41d4-a716-446655440000
+```
+
+### 5. Send Generic Notification
 
 POST /send-notification
 
@@ -241,16 +355,36 @@ Example internal (not returned to client):
 
 ## Database Schema
 
-Collection: user-contact-details
+### Collection: user-contact-details (OTP)
 
 ```javascript
 {
-  contact: '+447123456789',      // normalized phone (+44...) or lowercased email
-  secret: '12345',               // OTP (phone) or token (email link)
+  contact: '+447123456789',      // normalized phone (+44...)
+  secret: '12345',               // 5-digit OTP
   expiryTime: Date,              // 15 minutes after creation
   validated: false,
   createdAt: Date,
   updatedAt: Date
+}
+```
+
+### Collection: user-email-verification-details (Email Verification)
+
+```javascript
+{
+  contact: 'user@example.com',   // normalized email (lowercase)
+  secret: 'uuid-v4-string',      // verification token
+  expiryTime: Date,              // 15 minutes after creation
+  validated: false,
+  createdAt: Date,
+  updatedAt: Date,
+  verificationData: {            // original request data
+    emailAddress: 'user@example.com',
+    alertType: 'email',
+    location: 'staines',
+    lat: 0.789,
+    long: -0.876
+  }
 }
 ```
 
@@ -272,6 +406,20 @@ Indexes:
 {
   phoneNumber: Joi.string().required().min(10).max(15).pattern(/^[\+\d\s\-\(\)]+$/),
   otp: Joi.string().required().length(5).pattern(/^\d{5}$/)
+}
+
+// generate-link payload
+{
+  emailAddress: Joi.string().email().required(),
+  alertType: Joi.string().required(),
+  location: Joi.string().required(),
+  lat: Joi.number().required(),
+  long: Joi.number().required()
+}
+
+// validate-link params
+{
+  uuid: Joi.string().uuid().required()
 }
 
 // send-notification payload
@@ -338,10 +486,19 @@ paths:
         '200': { description: OTP validated successfully }
         '400': { description: Validation / functional error }
         '500': { description: Internal error }
-ate and send email verification link
+  /subscribe/generate-link:
+    post:
+      summary: Generate and send email verification link
       responses:
         '201': { description: Email verification link sent }
         '400': { description: Invalid input }
+        '500': { description: Internal error }
+  /subscribe/validate-link/{uuid}:
+    get:
+      summary: Validate email verification link
+      responses:
+        '200': { description: Email verified successfully }
+        '400': { description: Invalid or expired link }
         '500': { description: Internal error }
   /send-notification:
     post:
@@ -356,9 +513,12 @@ ate and send email verification link
 ## Change Log (Recent)
 
 - Added email verification link endpoint (/subscribe/generate-link)
+- Added email verification validation endpoint (/subscribe/validate-link/{uuid})
 - Added generic notification endpoint (/send-notification)
 - Implemented comprehensive logging with request/operation IDs
 - Added data masking for security (phone numbers, emails)
-- Updated database schema to user-contact-details collection
+- Updated database schema with separate collections for OTP and email verification
 - Enhanced error handling with detailed stack traces
 - Added performance monitoring and timing information
+- Email normalization (lowercase, trim, whitespace removal)
+- UUID-based verification tokens with 15-minute expiry
