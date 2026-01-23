@@ -67,7 +67,7 @@ async function generateLinkHandler(request, h) {
         config.get('notify.emailTemplateId'),
         {
           verification_link: result.verificationLink,
-          location: location,
+          location,
           alert_type: alertType
         }
       )

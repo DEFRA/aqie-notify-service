@@ -7,11 +7,17 @@ import { config } from '../../config.js'
 const HTTP_STATUS_CREATED = 201
 const HTTP_STATUS_OK = 200
 
-async function generateOtpHandler(request, h) {
-  const requestId =
+// Helper function to generate request ID
+function generateRequestId(request) {
+  return (
     request.headers['x-cdp-request-id'] ||
     request.info.id ||
-    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+  )
+}
+
+async function generateOtpHandler(request, h) {
+  const requestId = generateRequestId(request)
   request.logger.info(
     `otp.generate.requested [${requestId}] phone=***${request.payload?.phoneNumber?.slice(-3) || 'undefined'}`,
     {
@@ -92,9 +98,12 @@ async function generateOtpHandler(request, h) {
         errorName: error_.name,
         stack: error_.stack
       })
-      return h
-        .response({ status: 'otp_generated_notification_failed' })
-        .code(HTTP_STATUS_CREATED)
+      return Boom.badGateway('Failed to send OTP notification', {
+        status: 'otp_generated_notification_failed',
+        error: error_.message,
+        errorType: error_.name,
+        notifyError: error_.meta || null
+      })
     }
   } catch (err) {
     request.logger.error('otp.generate.unexpected_error', {
@@ -108,10 +117,7 @@ async function generateOtpHandler(request, h) {
 }
 
 async function validateOtpHandler(request, h) {
-  const requestId =
-    request.headers['x-cdp-request-id'] ||
-    request.info.id ||
-    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const requestId = generateRequestId(request)
   request.logger.info(
     `otp.validate.requested [${requestId}] phone=***${request.payload?.phoneNumber?.slice(-3) || 'undefined'} otpProvided=${!!request.payload?.otp}`,
     {
@@ -162,7 +168,7 @@ async function validateOtpHandler(request, h) {
 
     return h
       .response({
-        message: `${result.normalizedPhoneNumber} has been validated successfully`
+        message: `Phone number has been validated successfully`
       })
       .code(HTTP_STATUS_OK)
   } catch (err) {
