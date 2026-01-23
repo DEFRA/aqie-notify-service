@@ -116,12 +116,7 @@ describe('OTP Controller', () => {
           new Error('Notify service unavailable')
         )
 
-        mockH.response.mockReturnValue(mockH)
-        mockH.code.mockReturnValue({
-          status: 'otp_generated_notification_failed'
-        })
-
-        await generateOtpHandler(mockRequest, mockH)
+        const result = await generateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
           'otp.generate.notification_failed',
@@ -133,10 +128,14 @@ describe('OTP Controller', () => {
             stack: expect.stringContaining('Error: Notify service unavailable')
           })
         )
-        expect(mockH.response).toHaveBeenCalledWith({
-          status: 'otp_generated_notification_failed'
+        expect(result.isBoom).toBe(true)
+        expect(result.output.statusCode).toBe(502) // badGateway
+        expect(result.data).toEqual({
+          status: 'otp_generated_notification_failed',
+          error: 'Notify service unavailable',
+          errorType: 'Error',
+          notifyError: null
         })
-        expect(mockH.code).toHaveBeenCalledWith(201)
       })
     })
 
@@ -200,7 +199,7 @@ describe('OTP Controller', () => {
 
         mockH.response.mockReturnValue(mockH)
         mockH.code.mockReturnValue({
-          message: '+447123456789 has been validated successfully'
+          message: 'Phone number has been validated successfully'
         })
 
         // Fixed: Removed unused result assignment (line 168)
@@ -212,7 +211,7 @@ describe('OTP Controller', () => {
           '12345'
         )
         expect(mockH.response).toHaveBeenCalledWith({
-          message: '+447123456789 has been validated successfully'
+          message: 'Phone number has been validated successfully'
         })
         expect(mockH.code).toHaveBeenCalledWith(200)
       })
