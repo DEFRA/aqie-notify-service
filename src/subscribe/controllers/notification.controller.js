@@ -18,12 +18,12 @@ export async function sendNotificationHandler(request, h) {
     request.payload
 
   request.logger.info(
-    `notification.send.requested [${requestId}] ${phoneNumber ? 'SMS to ' + maskMsisdn(phoneNumber) : 'EMAIL to ' + (emailAddress ? maskEmail(emailAddress) : 'unknown')} template=${maskTemplateId(templateId)}`,
     {
       requestId,
       contactType: phoneNumber ? 'sms' : 'email',
       templateId: maskTemplateId(templateId)
-    }
+    },
+    `notification.send.requested [${requestId}] ${phoneNumber ? 'SMS to ' + maskMsisdn(phoneNumber) : 'EMAIL to ' + (emailAddress ? maskEmail(emailAddress) : 'unknown')} template=${maskTemplateId(templateId)}`
   )
 
   try {
@@ -37,12 +37,12 @@ export async function sendNotificationHandler(request, h) {
     )
 
     request.logger.info(
-      `notification.send.success [${requestId}] notificationId=${response.notificationId}`,
       {
         requestId,
         notificationId: response.notificationId,
         contactType: phoneNumber ? 'sms' : 'email'
-      }
+      },
+      `notification.send.success [${requestId}] notificationId=${response.notificationId}`
     )
 
     return h
