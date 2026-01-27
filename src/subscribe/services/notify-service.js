@@ -85,13 +85,13 @@ class NotifyService {
   ) {
     const operationId = generateOperationId('sms')
     logger.info(
-      `notify.send_sms.start [${operationId}] template=${maskTemplateId(templateId)} phone=${maskMsisdn(phoneNumber)}`,
       {
         operationId,
         templateId: maskTemplateId(templateId),
         phoneNumberMasked: maskMsisdn(phoneNumber),
         personalisationKeys: personalisation ? Object.keys(personalisation) : []
-      }
+      },
+      `notify.send_sms.start [${operationId}] template=${maskTemplateId(templateId)} phone=${maskMsisdn(phoneNumber)}`
     )
 
     try {
@@ -106,11 +106,14 @@ class NotifyService {
         )
       }
 
-      logger.info(`notify.send_sms.calling_notify_api [${operationId}]`, {
-        operationId,
-        templateId: maskTemplateId(templateId),
-        phoneNumberMasked: maskMsisdn(phoneNumber)
-      })
+      logger.info(
+        {
+          operationId,
+          templateId: maskTemplateId(templateId),
+          phoneNumberMasked: maskMsisdn(phoneNumber)
+        },
+        `notify.send_sms.calling_notify_api [${operationId}]`
+      )
 
       const response = await this.client.sendSms(templateId, phoneNumber, {
         personalisation
@@ -118,14 +121,14 @@ class NotifyService {
 
       const data = response?.data || {}
       logger.info(
-        `notify.send_sms.api_response_received [${operationId}] id=${data.id}`,
         {
           operationId,
           hasData: !!data,
           hasId: !!data.id,
           hasUri: !!data.uri,
           responseKeys: Object.keys(data)
-        }
+        },
+        `notify.send_sms.api_response_received [${operationId}] id=${data.id}`
       )
 
       if (!data.id) {
@@ -134,12 +137,12 @@ class NotifyService {
       }
 
       logger.info(
-        `notify.send_sms.success [${operationId}] notificationId=${data.id}`,
         {
           operationId,
           notificationId: data.id,
           templateId: maskTemplateId(templateId)
-        }
+        },
+        `notify.send_sms.success [${operationId}] notificationId=${data.id}`
       )
 
       return {
@@ -372,7 +375,7 @@ async function sendEmail(
 }
 
 /**
- * Send notification (SMS or Email)
+ * Send notification (SMS or Email) via /send-notification api
  */
 async function send(
   phoneNumber,
