@@ -1,5 +1,6 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { v4 as uuidv4 } from 'uuid'
+import { config } from '../../config.js'
 
 /**
  * Service for managing email verification details in MongoDB
@@ -94,7 +95,9 @@ class EmailVerificationService {
       return {
         success: true,
         uuid,
-        verificationLink: `/confirm-page/${uuid}`,
+        verificationLink:
+          config.get(`notify.alertFrontendBaseUrl`) +
+          `notify/register/email-confirm-link?token=${uuid}`,
         expiryTime
       }
     } catch (error) {

@@ -160,6 +160,32 @@ const config = convict({
       format: 'nat',
       default: 15000,
       env: 'NOTIFY_TIMEOUT_MS'
+    },
+    smsReplyPollIntervalMinutes: {
+      doc: 'Interval in minutes to poll GOV.UK Notify for SMS replies',
+      format: 'nat',
+      default: 1,
+      env: 'NOTIFY_SMS_REPLY_POLL_INTERVAL_MINUTES'
+    },
+    alertBackend: {
+      url: {
+        doc: 'Alert Backend Service URL',
+        format: String,
+        default: 'http://localhost:3001',
+        env: 'ALERT_BACKEND_URL'
+      }
+    },
+    smsReplyPollEnabled: {
+      doc: 'Enable or disable SMS reply polling cron job',
+      format: Boolean,
+      default: true,
+      env: 'NOTIFY_SMS_REPLY_POLL_ENABLED'
+    },
+    alertFrontendBaseUrl: {
+      doc: 'Base URL for frontend application, used in links sent via Notify',
+      format: String,
+      default: 'https://aqie-front-end.test.cdp-int.defra.cloud/',
+      env: 'ALERT_FRONTEND_BASE_URL'
     }
   }
 })

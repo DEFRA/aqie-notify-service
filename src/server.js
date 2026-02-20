@@ -4,6 +4,7 @@ import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
 import { router } from './plugins/router.js'
+import { smsReplyCron } from './plugins/sms-reply-cron.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { mongoDb } from './common/helpers/mongodb.js'
 import { failAction } from './common/helpers/fail-action.js'
@@ -55,7 +56,8 @@ async function createServer() {
       plugin: mongoDb,
       options: config.get('mongo')
     },
-    router
+    router,
+    smsReplyCron
   ])
 
   return server
