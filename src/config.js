@@ -133,13 +133,13 @@ const config = convict({
     apiKey: {
       doc: 'GOV.UK Notify API Key',
       format: String,
-      default: null,
+      default: '',
       env: 'NOTIFY_API_KEY'
     },
     templateId: {
       doc: 'GOV.UK Notify SMS Template ID for OTP',
       format: String,
-      default: null,
+      default: '',
       env: 'NOTIFY_SMS_VERIFY_OTP_TEMPLATE_ID'
     },
     otpPersonalisationKey: {
@@ -151,7 +151,7 @@ const config = convict({
     emailTemplateId: {
       doc: 'GOV.UK Notify Email Template ID for verification link',
       format: String,
-      default: null,
+      default: '',
       env: 'NOTIFY_EMAIL_VERIFY_LINK_TEMPLATE_ID'
     },
     timeoutMs: {
@@ -170,7 +170,7 @@ const config = convict({
       url: {
         doc: 'Alert Backend Service URL',
         format: String,
-        default: null,
+        default: '',
         env: 'ALERT_BACKEND_URL'
       }
     },
@@ -183,7 +183,7 @@ const config = convict({
     alertFrontendBaseUrl: {
       doc: 'Base URL for frontend application, used in links sent via Notify',
       format: String,
-      default: null,
+      default: '',
       env: 'ALERT_FRONTEND_BASE_URL'
     }
   }
