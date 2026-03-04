@@ -346,14 +346,14 @@ db.sms_replies.createIndex({ processedAt: -1 })
 
 ### Environment Variables
 
-| Variable                                        | Description                              | Default                    | Required |
-| ----------------------------------------------- | ---------------------------------------- | -------------------------- | -------- |
-| `NOTIFY_API_KEY`                                | GOV.UK Notify API key                    | -                          | Yes      |
-| `NOTIFY_SMS_REPLY_POLL_INTERVAL_MINUTES`        | Polling interval in minutes              | 1                          | No       |
+| Variable                                          | Description                              | Default                    | Required |
+| ------------------------------------------------- | ---------------------------------------- | -------------------------- | -------- |
+| `NOTIFY_API_KEY`                                  | GOV.UK Notify API key                    | -                          | Yes      |
+| `NOTIFY_SMS_REPLY_POLL_INTERVAL_MINUTES`          | Polling interval in minutes              | 1                          | No       |
 | `NOTIFY_SMS_UNSUBSCRIBE_CONFIRMATION_TEMPLATE_ID` | Template ID for unsubscribe confirmation | -                          | Yes      |
-| `ALERT_BACKEND_URL`                             | Alert backend service URL                | http://localhost:3001      | Yes      |
-| `MONGO_URI`                                     | MongoDB connection string                | mongodb://127.0.0.1:27017/ | Yes      |
-| `MONGO_DATABASE`                                | MongoDB database name                    | aqie-notify-service        | Yes      |
+| `ALERT_BACKEND_URL`                               | Alert backend service URL                | http://localhost:3001      | Yes      |
+| `MONGO_URI`                                       | MongoDB connection string                | mongodb://127.0.0.1:27017/ | Yes      |
+| `MONGO_DATABASE`                                  | MongoDB database name                    | aqie-notify-service        | Yes      |
 
 ### Example Configuration
 

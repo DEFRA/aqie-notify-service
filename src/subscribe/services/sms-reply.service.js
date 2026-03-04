@@ -29,11 +29,13 @@ function createSmsReplyService(db, logger) {
           await this.processMessage(msg, processedPhones)
           newMessages++
         }
-        logger.info({ total: messages.length, newMessages, alreadyProcessed }, 'sms_reply.poll.complete')
+        logger.info(
+          { total: messages.length, newMessages, alreadyProcessed },
+          'sms_reply.poll.complete'
+        )
         return { total: messages.length, processed: newMessages }
       } catch (error) {
-        logger.error(
-          { error: error.message },'sms_reply.poll.failure')
+        logger.error({ error: error.message }, 'sms_reply.poll.failure')
         throw error
       }
     },
@@ -49,7 +51,9 @@ function createSmsReplyService(db, logger) {
           messageId: msg.id,
           phoneNumber: '***' + phoneNumber.slice(-3),
           content
-        }, 'sms_reply.process')
+        },
+        'sms_reply.process'
+      )
 
       if (content === 'stop') {
         await this.handleStop(phoneNumber, msg, processedPhones)
@@ -65,7 +69,8 @@ function createSmsReplyService(db, logger) {
           {
             messageId: msg.id,
             phoneNumber: '***' + phoneNumber.slice(-3)
-          },'sms_reply.ignored'
+          },
+          'sms_reply.ignored'
         )
       }
     },
@@ -85,7 +90,9 @@ function createSmsReplyService(db, logger) {
             {
               phoneNumber: '***' + phoneNumber.slice(-3),
               messageId: msg.id
-            }, 'sms_reply.stop.duplicate_in_batch')
+            },
+            'sms_reply.stop.duplicate_in_batch'
+          )
           return
         }
 
@@ -116,7 +123,8 @@ function createSmsReplyService(db, logger) {
             {
               phoneNumber: '***' + phoneNumber.slice(-3),
               messageId: msg.id
-            },'sms_reply.stop.unsubscribed'
+            },
+            'sms_reply.stop.unsubscribed'
           )
 
           // Send confirmation SMS
@@ -138,7 +146,8 @@ function createSmsReplyService(db, logger) {
             {
               phoneNumber: '***' + phoneNumber.slice(-3),
               messageId: msg.id
-            },'sms_reply.stop.user_not_found'
+            },
+            'sms_reply.stop.user_not_found'
           )
         } else {
           // Server error - don't mark as processed, will retry
@@ -149,7 +158,8 @@ function createSmsReplyService(db, logger) {
           {
             phoneNumber: '***' + phoneNumber.slice(-3),
             error: error.message
-          },'sms_reply.stop.failure'
+          },
+          'sms_reply.stop.failure'
         )
         throw error
       }
@@ -173,16 +183,24 @@ function createSmsReplyService(db, logger) {
 
     async sendUnsubscribeConfirmation(phoneNumber) {
       try {
-        const templateId = config.get('notify.unsubscribeConfirmationTemplateId')
-        
+        const templateId = config.get(
+          'notify.unsubscribeConfirmationTemplateId'
+        )
+
         if (!templateId) {
-          logger.warn({ phoneNumber: '***' + phoneNumber.slice(-3) }, 'sms_reply.confirmation.no_template')
+          logger.warn(
+            { phoneNumber: '***' + phoneNumber.slice(-3) },
+            'sms_reply.confirmation.no_template'
+          )
           return
         }
 
         await notificationService.sendSms(phoneNumber, templateId, {})
-        
-        logger.info({ phoneNumber: '***' + phoneNumber.slice(-3) }, 'sms_reply.confirmation.sent')
+
+        logger.info(
+          { phoneNumber: '***' + phoneNumber.slice(-3) },
+          'sms_reply.confirmation.sent'
+        )
       } catch (error) {
         logger.error(
           { phoneNumber: '***' + phoneNumber.slice(-3), error: error.message },

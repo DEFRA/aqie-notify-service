@@ -22,15 +22,16 @@ Log success
 
 New log events:
 
-| Event | Level | Description |
-|-------|-------|-------------|
-| `sms_reply.confirmation.no_template` | warn | Template ID not configured |
-| `sms_reply.confirmation.sent` | info | Confirmation SMS sent successfully |
-| `sms_reply.confirmation.failed` | error | Failed to send confirmation SMS |
+| Event                                | Level | Description                        |
+| ------------------------------------ | ----- | ---------------------------------- |
+| `sms_reply.confirmation.no_template` | warn  | Template ID not configured         |
+| `sms_reply.confirmation.sent`        | info  | Confirmation SMS sent successfully |
+| `sms_reply.confirmation.failed`      | error | Failed to send confirmation SMS    |
 
 ## Testing
 
 ### Manual Test
+
 1. Send "STOP" from a test phone number
 2. Wait 1 minute for cron to process
 3. Check logs for `sms_reply.stop.unsubscribed`
@@ -40,6 +41,7 @@ New log events:
 7. Verify MongoDB record has `status: "unsubscribed"`
 
 ### Test Without Template
+
 1. Don't set `NOTIFY_SMS_UNSUBSCRIBE_CONFIRMATION_TEMPLATE_ID`
 2. Send "STOP"
 3. Verify unsubscribe still works

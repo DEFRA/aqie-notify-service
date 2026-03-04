@@ -187,7 +187,7 @@ const config = convict({
       default: 'https://aqie-front-end.test.cdp-int.defra.cloud/',
       env: 'ALERT_FRONTEND_BASE_URL'
     },
-      unsubscribeConfirmationTemplateId: {
+    unsubscribeConfirmationTemplateId: {
       doc: 'GOV.UK Notify SMS Template ID for unsubscribe confirmation',
       format: String,
       default: '6cd8b976-cd8b-4249-951a-edf4b5dbdc53',
