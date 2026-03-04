@@ -133,13 +133,14 @@ const config = convict({
     apiKey: {
       doc: 'GOV.UK Notify API Key',
       format: String,
-      default: '',
+      default:
+        'team-7536f7da-f08e-46ed-8693-dada56a5eb7b-0aad529b-f8ac-4395-886f-c283cb2b3ab2',
       env: 'NOTIFY_API_KEY'
     },
     templateId: {
       doc: 'GOV.UK Notify SMS Template ID for OTP',
       format: String,
-      default: '',
+      default: '33420172-8b38-4fc8-8bc0-0390a4099e24',
       env: 'NOTIFY_SMS_VERIFY_OTP_TEMPLATE_ID'
     },
     otpPersonalisationKey: {
@@ -151,7 +152,7 @@ const config = convict({
     emailTemplateId: {
       doc: 'GOV.UK Notify Email Template ID for verification link',
       format: String,
-      default: '',
+      default: '315e1284-ff70-4ee5-b9fb-9c36596da4a3',
       env: 'NOTIFY_EMAIL_VERIFY_LINK_TEMPLATE_ID'
     },
     timeoutMs: {
@@ -170,21 +171,27 @@ const config = convict({
       url: {
         doc: 'Alert Backend Service URL',
         format: String,
-        default: '',
+        default: 'http://localhost:3001',
         env: 'ALERT_BACKEND_URL'
       }
     },
     smsReplyPollEnabled: {
       doc: 'Enable or disable SMS reply polling cron job',
       format: Boolean,
-      default: false,
+      default: true,
       env: 'NOTIFY_SMS_REPLY_POLL_ENABLED'
     },
     alertFrontendBaseUrl: {
       doc: 'Base URL for frontend application, used in links sent via Notify',
       format: String,
-      default: '',
+      default: 'https://aqie-front-end.test.cdp-int.defra.cloud/',
       env: 'ALERT_FRONTEND_BASE_URL'
+    },
+      unsubscribeConfirmationTemplateId: {
+      doc: 'GOV.UK Notify SMS Template ID for unsubscribe confirmation',
+      format: String,
+      default: '6cd8b976-cd8b-4249-951a-edf4b5dbdc53',
+      env: 'NOTIFY_SMS_UNSUBSCRIBE_CONFIRMATION_TEMPLATE_ID'
     }
   }
 })

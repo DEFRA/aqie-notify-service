@@ -27,12 +27,12 @@ Service 2 (notify-service) polls GOV.UK Notify API every 1 minute to detect and 
 │                            └─────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                                       │
-                                      │ STOP → POST /opt-out-alert
+                                      │ STOP → DELETE /opt-out-sms-alert
                                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Service 1 (alert-back-end)                      │
 │                                                               │
-│  POST /opt-out-alert { phoneNumber }                           │
+│  DELETE /opt-out-sms-alert { phoneNumber }                           │
 │  - Delete from Users collection                              │
 │  - Return 200 OK                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -47,7 +47,7 @@ Service 2 (notify-service) polls GOV.UK Notify API every 1 minute to detect and 
 
 ### 2. Message Processing
 
-- **STOP**: Call Service 1's `/opt-out-alert` → Mark as `unsubscribed`
+- **STOP**: Call Service 1's `/opt-out-sms-alert` → Mark as `unsubscribed`
 - **Other**: Mark as `ignored`
 
 ### 3. Deduplication
@@ -107,7 +107,7 @@ Response:
 
 1. Cron polls Notify API
 2. Detects "STOP" message
-3. Calls `POST http://alert-backend:3001/opt-out-alert`
+3. Calls `DELETE http://alert-backend:3001/opt-out-sms-alert`
 4. Stores in DB: `status: 'unsubscribed'` or `'user_not_found'`
 
 ## Error Handling
