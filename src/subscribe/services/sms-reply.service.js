@@ -1,10 +1,12 @@
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 import { fetch } from 'undici'
+import { createNotificationService } from './notify-service.js'
 
 function createSmsReplyService(db, logger) {
   const client = new NotifyClient(config.get('notify.apiKey'))
   const alertBackendUrl = config.get('notify.alertBackend.url')
+  const notificationService = createNotificationService()
 
   return {
     async pollAndProcessReplies() {
@@ -12,12 +14,7 @@ function createSmsReplyService(db, logger) {
         const response = await client.getReceivedTexts()
         const messages = response.data.received_text_messages || []
 
-        logger.info(
-          {
-            totalMessages: messages.length
-          },
-          'sms_reply.poll'
-        )
+        logger.info({ totalMessages: messages.length }, 'sms_reply.poll')
 
         let newMessages = 0
         let alreadyProcessed = 0
@@ -29,28 +26,16 @@ function createSmsReplyService(db, logger) {
             alreadyProcessed++
             continue
           }
-
           await this.processMessage(msg, processedPhones)
           newMessages++
         }
-
         logger.info(
-          {
-            total: messages.length,
-            newMessages,
-            alreadyProcessed
-          },
+          { total: messages.length, newMessages, alreadyProcessed },
           'sms_reply.poll.complete'
         )
-
         return { total: messages.length, processed: newMessages }
       } catch (error) {
-        logger.error(
-          {
-            error: error.message
-          },
-          'sms_reply.poll.failure'
-        )
+        logger.error({ error: error.message }, 'sms_reply.poll.failure')
         throw error
       }
     },
@@ -112,8 +97,8 @@ function createSmsReplyService(db, logger) {
         }
 
         // Call backend to unsubscribe
-        const response = await fetch(`${alertBackendUrl}/opt-out-alert`, {
-          method: 'POST',
+        const response = await fetch(`${alertBackendUrl}/opt-out-sms-alert`, {
+          method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phoneNumber })
         })
@@ -141,6 +126,9 @@ function createSmsReplyService(db, logger) {
             },
             'sms_reply.stop.unsubscribed'
           )
+
+          // Send confirmation SMS
+          await this.sendUnsubscribeConfirmation(phoneNumber)
         } else if (response.status === 404) {
           // User not found
           await db.collection('sms_replies').insertOne({
@@ -191,6 +179,34 @@ function createSmsReplyService(db, logger) {
         status,
         processedAt: new Date()
       })
+    },
+
+    async sendUnsubscribeConfirmation(phoneNumber) {
+      try {
+        const templateId = config.get(
+          'notify.unsubscribeConfirmationTemplateId'
+        )
+
+        if (!templateId) {
+          logger.warn(
+            { phoneNumber: '***' + phoneNumber.slice(-3) },
+            'sms_reply.confirmation.no_template'
+          )
+          return
+        }
+
+        await notificationService.sendSms(phoneNumber, templateId, {})
+
+        logger.info(
+          { phoneNumber: '***' + phoneNumber.slice(-3) },
+          'sms_reply.confirmation.sent'
+        )
+      } catch (error) {
+        logger.error(
+          { phoneNumber: '***' + phoneNumber.slice(-3), error: error.message },
+          'sms_reply.confirmation.failed'
+        )
+      }
     }
   }
 }

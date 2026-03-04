@@ -43,6 +43,7 @@ Enable users to unsubscribe from air quality SMS alerts by replying "STOP" to an
 ### Key Features
 
 - One-step unsubscribe (no confirmation required)
+- Automatic confirmation SMS sent after successful unsubscription
 - Automatic deduplication of duplicate STOP messages
 - Phone number normalization (+44 prefix)
 - Comprehensive audit logging
@@ -96,7 +97,7 @@ So that I can immediately unsubscribe from future alerts
        │                         │                GOV.UK      │
        │                         │<───────────────┤ Notify    │
        │                         │                            │
-       │                         │ 3. POST /opt-out-alert     │
+       │                         │ 3. DELETE /opt-out-sms-alert     │
        │                         ├───────────────────────────>│
        │                         │                            │
        │                         │ 4. 200 OK (deleted)        │
@@ -105,6 +106,9 @@ So that I can immediately unsubscribe from future alerts
        │                         │ 5. Save to MongoDB         │
        │                         │ (audit trail)              │
        │                         │                            │
+       │ 6. Confirmation SMS     │                            │
+       │<────────────────────────┤                            │
+       │ "You've unsubscribed"   │                            │
 ```
 
 ### Components
@@ -196,7 +200,7 @@ Host: localhost:3000
 #### Endpoint
 
 ```
-POST /opt-out-alert
+DELETE /opt-out-sms-alert
 ```
 
 #### Purpose
@@ -206,7 +210,7 @@ Delete user from alert system (called by Notify Service)
 #### Request
 
 ```http
-POST /opt-out-alert HTTP/1.1
+DELETE /opt-out-sms-alert HTTP/1.1
 Host: alert-backend:3001
 Content-Type: application/json
 
@@ -342,13 +346,14 @@ db.sms_replies.createIndex({ processedAt: -1 })
 
 ### Environment Variables
 
-| Variable                                 | Description                 | Default                    | Required |
-| ---------------------------------------- | --------------------------- | -------------------------- | -------- |
-| `NOTIFY_API_KEY`                         | GOV.UK Notify API key       | -                          | Yes      |
-| `NOTIFY_SMS_REPLY_POLL_INTERVAL_MINUTES` | Polling interval in minutes | 1                          | No       |
-| `ALERT_BACKEND_URL`                      | Alert backend service URL   | http://localhost:3001      | Yes      |
-| `MONGO_URI`                              | MongoDB connection string   | mongodb://127.0.0.1:27017/ | Yes      |
-| `MONGO_DATABASE`                         | MongoDB database name       | aqie-notify-service        | Yes      |
+| Variable                                          | Description                              | Default                    | Required |
+| ------------------------------------------------- | ---------------------------------------- | -------------------------- | -------- |
+| `NOTIFY_API_KEY`                                  | GOV.UK Notify API key                    | -                          | Yes      |
+| `NOTIFY_SMS_REPLY_POLL_INTERVAL_MINUTES`          | Polling interval in minutes              | 1                          | No       |
+| `NOTIFY_SMS_UNSUBSCRIBE_CONFIRMATION_TEMPLATE_ID` | Template ID for unsubscribe confirmation | -                          | Yes      |
+| `ALERT_BACKEND_URL`                               | Alert backend service URL                | http://localhost:3001      | Yes      |
+| `MONGO_URI`                                       | MongoDB connection string                | mongodb://127.0.0.1:27017/ | Yes      |
+| `MONGO_DATABASE`                                  | MongoDB database name                    | aqie-notify-service        | Yes      |
 
 ### Example Configuration
 
@@ -357,6 +362,7 @@ db.sms_replies.createIndex({ processedAt: -1 })
 ```bash
 NOTIFY_API_KEY=team-xxx-yyy-zzz
 NOTIFY_SMS_REPLY_POLL_INTERVAL_MINUTES=1
+NOTIFY_SMS_UNSUBSCRIBE_CONFIRMATION_TEMPLATE_ID=your-template-id-here
 ALERT_BACKEND_URL=http://localhost:3001
 MONGO_URI=mongodb://127.0.0.1:27017/
 MONGO_DATABASE=aqie-notify-service
