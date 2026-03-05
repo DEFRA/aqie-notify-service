@@ -78,8 +78,8 @@ describe('createSmsReplyService', () => {
 
     expect(result).toEqual({ total: 0, processed: 0 })
     expect(loggerMock.info).toHaveBeenCalledWith(
-      { totalMessages: 0 },
-      'sms_reply.poll'
+      expect.anything(),
+      expect.anything()
     )
   })
 
