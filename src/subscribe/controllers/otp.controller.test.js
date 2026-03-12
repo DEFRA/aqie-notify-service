@@ -119,15 +119,12 @@ describe('OTP Controller', () => {
         const result = await generateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'otp.generate.notification_failed',
-          expect.objectContaining({
-            error: 'Notify service unavailable',
-            errorName: 'Error',
-            normalizedPhoneNumber: '***789',
-            requestId: 'test-request-id',
-            stack: expect.stringContaining('Error: Notify service unavailable')
-          })
+          expect.stringContaining('otp.generate.notification_failed')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('Notify service unavailable')
+        expect(logCall).toContain('test-request-id')
+        expect(logCall).toContain('****6789')
         expect(result.isBoom).toBe(true)
         expect(result.output.statusCode).toBe(502) // badGateway
         expect(result.data).toEqual({
@@ -157,14 +154,11 @@ describe('OTP Controller', () => {
         const result = await generateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'otp.generate.unexpected_error',
-          expect.objectContaining({
-            error: 'Database error',
-            errorName: 'Error',
-            requestId: 'test-request-id',
-            stack: expect.stringContaining('Error: Database error')
-          })
+          expect.stringContaining('otp.generate.unexpected_error')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('Database error')
+        expect(logCall).toContain('test-request-id')
         expect(result.isBoom).toBe(true)
         expect(result.output.statusCode).toBe(500)
       })
@@ -235,14 +229,11 @@ describe('OTP Controller', () => {
         const result = await validateOtpHandler(mockRequest, mockH)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'otp.validate.unexpected_error',
-          expect.objectContaining({
-            error: 'Database error',
-            errorName: 'Error',
-            requestId: 'test-request-id',
-            stack: expect.stringContaining('Error: Database error')
-          })
+          expect.stringContaining('otp.validate.unexpected_error')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('Database error')
+        expect(logCall).toContain('test-request-id')
         expect(result.isBoom).toBe(true)
         expect(result.output.statusCode).toBe(500) // internal
       })

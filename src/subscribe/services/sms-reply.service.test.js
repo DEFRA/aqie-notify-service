@@ -77,9 +77,12 @@ describe('createSmsReplyService', () => {
     const result = await service.pollAndProcessReplies()
 
     expect(result).toEqual({ total: 0, processed: 0 })
+    // Updated assertion to match new logger format
     expect(loggerMock.info).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything()
+      expect.stringContaining('sms_reply.poll')
+    )
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.poll.complete')
     )
   })
 
@@ -105,6 +108,10 @@ describe('createSmsReplyService', () => {
     const result = await service.pollAndProcessReplies()
 
     expect(result).toEqual({ total: 1, processed: 0 })
+    // Check that poll.complete was called
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.poll.complete')
+    )
   })
 
   // -----------------------------------------------------
@@ -142,6 +149,14 @@ describe('createSmsReplyService', () => {
         status: 'unsubscribed'
       })
     )
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.stop.unsubscribed')
+    )
+    const logCall = loggerMock.info.mock.calls.find((call) =>
+      call[0].includes('sms_reply.stop.unsubscribed')
+    )
+    expect(logCall[0]).toContain('****0111')
+    expect(logCall[0]).toContain('m1')
   })
 
   // -----------------------------------------------------
@@ -179,6 +194,10 @@ describe('createSmsReplyService', () => {
         status: 'user_not_found'
       })
     )
+    // Check that poll.complete was called
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.poll.complete')
+    )
   })
 
   // -----------------------------------------------------
@@ -209,7 +228,12 @@ describe('createSmsReplyService', () => {
       'Server exploded'
     )
 
-    expect(loggerMock.error).toHaveBeenCalled()
+    expect(loggerMock.error).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.stop.failure')
+    )
+    const logCall = loggerMock.error.mock.calls[0][0]
+    expect(logCall).toContain('****0333')
+    expect(logCall).toContain('Server exploded')
   })
 
   // -----------------------------------------------------
@@ -281,10 +305,16 @@ describe('createSmsReplyService', () => {
     expect(dbMock.collection().insertOne).toHaveBeenCalledWith(
       expect.objectContaining({ messageId: 'mA', status: 'unsubscribed' })
     )
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.stop.unsubscribed')
+    )
 
     // Second STOP duplicate
     expect(dbMock.collection().insertOne).toHaveBeenCalledWith(
       expect.objectContaining({ messageId: 'mB', status: 'duplicate_stop' })
+    )
+    expect(loggerMock.info).toHaveBeenCalledWith(
+      expect.stringContaining('sms_reply.stop.duplicate_in_batch')
     )
   })
 })

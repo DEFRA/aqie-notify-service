@@ -42,4 +42,15 @@ function generateOperationId(prefix = 'op') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 }
 
-export { maskMsisdn, maskEmail, maskTemplateId, generateOperationId }
+function maskPhoneNumber(phoneNumber) {
+  if (!phoneNumber || typeof phoneNumber !== 'string') return null
+  return phoneNumber.length > 4 ? `****${phoneNumber.slice(-4)}` : '****'
+}
+
+export {
+  maskMsisdn,
+  maskEmail,
+  maskTemplateId,
+  generateOperationId,
+  maskPhoneNumber
+}

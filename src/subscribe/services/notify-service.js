@@ -85,34 +85,21 @@ class NotifyService {
   ) {
     const operationId = generateOperationId('sms')
     logger.info(
-      {
-        operationId,
-        templateId: maskTemplateId(templateId),
-        phoneNumberMasked: maskMsisdn(phoneNumber),
-        personalisationKeys: personalisation ? Object.keys(personalisation) : []
-      },
-      `notify.send_sms.start [${operationId}] template=${maskTemplateId(templateId)} phone=${maskMsisdn(phoneNumber)}`
+      `notify.send_sms.start ${JSON.stringify({ operationId, templateId: maskTemplateId(templateId), phoneNumberMasked: maskMsisdn(phoneNumber), personalisationKeys: personalisation ? Object.keys(personalisation) : [] })}`
     )
 
     try {
       if (!templateId || !phoneNumber) {
-        logger.error('notify.send_sms.missing_parameters', {
-          operationId,
-          hasTemplateId: !!templateId,
-          hasPhoneNumber: !!phoneNumber
-        })
+        logger.error(
+          `notify.send_sms.missing_parameters ${JSON.stringify({ operationId, hasTemplateId: !!templateId, hasPhoneNumber: !!phoneNumber })}`
+        )
         throw new Error(
           'Missing required parameters: templateId and phoneNumber'
         )
       }
 
       logger.info(
-        {
-          operationId,
-          templateId: maskTemplateId(templateId),
-          phoneNumberMasked: maskMsisdn(phoneNumber)
-        },
-        `notify.send_sms.calling_notify_api [${operationId}]`
+        `notify.send_sms.calling_notify_api ${JSON.stringify({ operationId, templateId: maskTemplateId(templateId), phoneNumberMasked: maskMsisdn(phoneNumber) })}`
       )
 
       const response = await this.client.sendSms(templateId, phoneNumber, {
@@ -121,28 +108,18 @@ class NotifyService {
 
       const data = response?.data || {}
       logger.info(
-        {
-          operationId,
-          hasData: !!data,
-          hasId: !!data.id,
-          hasUri: !!data.uri,
-          responseKeys: Object.keys(data)
-        },
-        `notify.send_sms.api_response_received [${operationId}] id=${data.id}`
+        `notify.send_sms.api_response_received ${JSON.stringify({ operationId, hasData: !!data, hasId: !!data.id, hasUri: !!data.uri, responseKeys: Object.keys(data), notificationId: data.id })}`
       )
 
       if (!data.id) {
-        logger.error('notify.send_sms_generic.missing_id')
+        logger.error(
+          `notify.send_sms_generic.missing_id ${JSON.stringify({ operationId })}`
+        )
         throw new Error('MissingNotificationId')
       }
 
       logger.info(
-        {
-          operationId,
-          notificationId: data.id,
-          templateId: maskTemplateId(templateId)
-        },
-        `notify.send_sms.success [${operationId}] notificationId=${data.id}`
+        `notify.send_sms.success ${JSON.stringify({ operationId, notificationId: data.id, templateId: maskTemplateId(templateId) })}`
       )
 
       return {
@@ -151,14 +128,9 @@ class NotifyService {
       }
     } catch (err) {
       const parsed = parseNotifyError(err)
-      logger.error('notify.send_sms_generic.failure', {
-        category: parsed.category,
-        errorType: parsed.errorType,
-        originalError: err.message,
-        phoneNumberMasked: maskMsisdn(phoneNumber),
-        statusCode: parsed.statusCode,
-        templateId: maskTemplateId(templateId)
-      })
+      logger.error(
+        `notify.send_sms_generic.failure ${JSON.stringify({ category: parsed.category, errorType: parsed.errorType, originalError: err.message, phoneNumberMasked: maskMsisdn(phoneNumber), statusCode: parsed.statusCode, templateId: maskTemplateId(templateId) })}`
+      )
       throw new NotifySmsError('FailedToSendSMS', parsed)
     }
   }
@@ -280,39 +252,27 @@ class NotifyService {
    */
   async getNotificationStatus(notificationId) {
     const operationId = generateOperationId('status')
-    logger.info('notify.get_status.start', {
-      operationId,
-      notificationId
-    })
+    logger.info(
+      `notify.get_status.start ${JSON.stringify({ operationId, notificationId })}`
+    )
 
     try {
-      logger.info('notify.get_status.calling_notify_api', {
-        operationId,
-        notificationId
-      })
+      logger.info(
+        `notify.get_status.calling_notify_api ${JSON.stringify({ operationId, notificationId })}`
+      )
 
       const response = await this.client.getNotificationById(notificationId)
 
-      logger.info('notify.get_status.success', {
-        operationId,
-        notificationId,
-        status: response.body?.status,
-        createdAt: response.body?.created_at
-      })
+      logger.info(
+        `notify.get_status.success ${JSON.stringify({ operationId, notificationId, status: response.body?.status, createdAt: response.body?.created_at })}`
+      )
 
       return response.body
     } catch (err) {
       const parsed = parseNotifyError(err)
-      logger.error('notify.get_status.failure', {
-        operationId,
-        notificationId,
-        statusCode: parsed.statusCode,
-        errorType: parsed.errorType,
-        category: parsed.category,
-        retriable: parsed.retriable,
-        originalError: err.message,
-        errorName: err.name
-      })
+      logger.error(
+        `notify.get_status.failure ${JSON.stringify({ operationId, notificationId, statusCode: parsed.statusCode, errorType: parsed.errorType, category: parsed.category, retriable: parsed.retriable, originalError: err.message, errorName: err.name })}`
+      )
       throw new NotifySmsError('FailedToGetNotificationStatus', {
         ...parsed,
         notificationId

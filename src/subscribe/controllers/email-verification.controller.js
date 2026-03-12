@@ -12,28 +12,15 @@ async function generateLinkHandler(request, h) {
     `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
   request.logger.info(
-    `email.generate_link.requested [${requestId}] email=***${request.payload?.emailAddress?.slice(-10) || 'undefined'}`,
-    {
-      requestId,
-      emailAddress: request.payload?.emailAddress
-        ? '***' + request.payload.emailAddress.slice(-10)
-        : 'undefined',
-      alertType: request.payload?.alertType,
-      location: request.payload?.location,
-      userAgent: request.headers['user-agent'],
-      ip: request.info.remoteAddress
-    }
+    `email.generate_link.requested ${JSON.stringify({ requestId, emailAddress: request.payload?.emailAddress ? '***' + request.payload.emailAddress.slice(-10) : 'undefined', alertType: request.payload?.alertType, location: request.payload?.location, userAgent: request.headers['user-agent'], ip: request.info.remoteAddress })}`
   )
 
   try {
     const { emailAddress, alertType, location, lat, long } = request.payload
 
-    request.logger.info('email.generate_link.start', {
-      requestId,
-      emailAddress: '***' + emailAddress.slice(-10),
-      alertType,
-      location
-    })
+    request.logger.info(
+      `email.generate_link.start ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), alertType, location })}`
+    )
 
     const emailVerificationService = createEmailVerificationService(
       request.db,
@@ -47,19 +34,14 @@ async function generateLinkHandler(request, h) {
       long
     )
 
-    request.logger.info('email.generate_link.stored', {
-      requestId,
-      emailAddress: '***' + emailAddress.slice(-10),
-      uuid: result.uuid.substring(0, 8) + '...',
-      success: result.success
-    })
+    request.logger.info(
+      `email.generate_link.stored ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), uuid: result.uuid.substring(0, 8) + '...', success: result.success })}`
+    )
 
     try {
-      request.logger.info('email.generate_link.notification_start', {
-        requestId,
-        emailAddress: '***' + emailAddress.slice(-10),
-        templateId: config.get('notify.emailTemplateId')
-      })
+      request.logger.info(
+        `email.generate_link.notification_start ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), templateId: config.get('notify.emailTemplateId') })}`
+      )
 
       const notificationService = createNotificationService()
       const { notificationId } = await notificationService.sendEmail(
@@ -73,13 +55,7 @@ async function generateLinkHandler(request, h) {
       )
 
       request.logger.info(
-        `email.generate_link.notification_success [${requestId}] email=***${emailAddress.slice(-10)} notificationId=${notificationId}`,
-        {
-          requestId,
-          emailAddress: '***' + emailAddress.slice(-10),
-          notificationId,
-          uuid: result.uuid.substring(0, 8) + '...'
-        }
+        `email.generate_link.notification_success ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), notificationId, uuid: result.uuid.substring(0, 8) + '...' })}`
       )
 
       return h
@@ -89,13 +65,9 @@ async function generateLinkHandler(request, h) {
         })
         .code(HTTP_STATUS_CREATED)
     } catch (error_) {
-      request.logger.error('email.generate_link.notification_failed', {
-        requestId,
-        emailAddress: '***' + emailAddress.slice(-10),
-        error: error_.message,
-        errorName: error_.name,
-        stack: error_.stack
-      })
+      request.logger.error(
+        `email.generate_link.notification_failed ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), error: error_.message, errorName: error_.name, stack: error_.stack })}`
+      )
       return h
         .response({
           message: 'Link has been sent to email',
@@ -104,12 +76,9 @@ async function generateLinkHandler(request, h) {
         .code(HTTP_STATUS_CREATED)
     }
   } catch (err) {
-    request.logger.error('email.generate_link.unexpected_error', {
-      requestId,
-      error: err.message,
-      errorName: err.name,
-      stack: err.stack
-    })
+    request.logger.error(
+      `email.generate_link.unexpected_error ${JSON.stringify({ requestId, error: err.message, errorName: err.name, stack: err.stack })}`
+    )
     return Boom.internal('Failed to generate verification link')
   }
 }

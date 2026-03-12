@@ -94,9 +94,11 @@ describe('OTP Service', () => {
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
-        expect(mockLogger.info).toHaveBeenCalledWith('OTP generated', {
-          phoneNumber: normalizedPhone
-        })
+        expect(mockLogger.info).toHaveBeenCalledWith(
+          expect.stringContaining('otp.generate.success')
+        )
+        const logCall = mockLogger.info.mock.calls[0][0]
+        expect(logCall).toContain('****6789')
         expect(result).toEqual({
           normalizedPhoneNumber: normalizedPhone,
           otp
@@ -152,11 +154,10 @@ describe('OTP Service', () => {
 
         expect(result).toEqual({ error: 'Failed to generate OTP' })
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'Failed to generate OTP',
-          {
-            error: 'Database connection failed'
-          }
+          expect.stringContaining('otp.generate.failed')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('Database connection failed')
       })
     })
   })
@@ -187,9 +188,11 @@ describe('OTP Service', () => {
           normalizedPhone,
           otp
         )
-        expect(mockLogger.info).toHaveBeenCalledWith('OTP validated', {
-          phoneNumber: normalizedPhone
-        })
+        expect(mockLogger.info).toHaveBeenCalledWith(
+          expect.stringContaining('otp.validate.success')
+        )
+        const logCall = mockLogger.info.mock.calls[0][0]
+        expect(logCall).toContain('****6789')
         expect(result).toEqual({
           normalizedPhoneNumber: normalizedPhone
         })
@@ -243,11 +246,10 @@ describe('OTP Service', () => {
 
         expect(result).toEqual({ error: 'Failed to validate OTP' })
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'Failed to validate OTP',
-          {
-            error: 'Database query failed'
-          }
+          expect.stringContaining('otp.validate.failed')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('Database query failed')
       })
     })
   })

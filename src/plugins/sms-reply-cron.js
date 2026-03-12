@@ -23,10 +23,7 @@ const smsReplyCron = {
           await smsReplyService.pollAndProcessReplies()
         } catch (error) {
           logger.error(
-            {
-              error: error.message
-            },
-            'sms_reply_cron.failure'
+            `sms_reply_cron.failure ${JSON.stringify({ error: error.message })}`
           )
         }
       }, intervalMs)
@@ -38,10 +35,7 @@ const smsReplyCron = {
       })
 
       logger.info(
-        {
-          intervalMinutes
-        },
-        'sms_reply_cron.registered'
+        `sms_reply_cron.registered ${JSON.stringify({ intervalMinutes })}`
       )
     }
   }

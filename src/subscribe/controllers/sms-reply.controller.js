@@ -17,15 +17,9 @@ async function processSmsRepliesHandler(request, h) {
       })
       .code(HTTP_STATUS_OK)
   } catch (err) {
-    // request.logger.error('process_sms_replies.failure', {
-    //   error: err.message
-    // })
-    request.logger.error('process_sms_replies.failure', {
-      error: err.message,
-      requestId: request.headers['x-cdp-request-id'] || request.info.id,
-      userAgent: request.headers['user-agent'],
-      ip: request.info.remoteAddress
-    })
+    request.logger.error(
+      `process_sms_replies.failure ${JSON.stringify({ error: err.message, requestId: request.headers['x-cdp-request-id'] || request.info.id, userAgent: request.headers['user-agent'], ip: request.info.remoteAddress })}`
+    )
     return Boom.internal('Failed to process SMS replies')
   }
 }

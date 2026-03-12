@@ -1,4 +1,21 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
+import {
+  maskPhoneNumber,
+  maskEmail
+} from '../../common/helpers/masking-utils.js'
+
+/**
+ * Helper to mask contact (phone or email)
+ */
+function maskContact(contact) {
+  if (!contact) return 'undefined'
+  // Check if it's an email (contains @)
+  if (contact.includes('@')) {
+    return maskEmail(contact)
+  }
+  // Otherwise treat as phone number
+  return maskPhoneNumber(contact)
+}
 
 /**
  * Service for managing user contact details in MongoDB
@@ -34,12 +51,9 @@ class UserContactService {
    */
   async storeVerificationDetails(contact, secret, expiryTime) {
     const operationId = `store_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    this.logger.info('user_contact.store.start', {
-      operationId,
-      contact: contact ? '***' + contact.slice(-3) : 'undefined',
-      expiryTime: expiryTime?.toISOString(),
-      secretLength: secret?.length
-    })
+    this.logger.info(
+      `user_contact.store.start ${JSON.stringify({ operationId, contact: maskContact(contact), expiryTime: expiryTime?.toISOString(), secretLength: secret?.length })}`
+    )
 
     try {
       const document = {
@@ -51,23 +65,18 @@ class UserContactService {
         updatedAt: new Date()
       }
 
-      this.logger.info('user_contact.store.executing_upsert', {
-        operationId,
-        contact: '***' + contact.slice(-3)
-      })
+      this.logger.info(
+        `user_contact.store.executing_upsert ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+      )
 
       // Upsert the document (update if exists, insert if not)
       const result = await this.collection.replaceOne({ contact }, document, {
         upsert: true
       })
 
-      this.logger.info('user_contact.store.success', {
-        operationId,
-        contact: '***' + contact.slice(-3),
-        upserted: result.upsertedId !== null,
-        modified: result.modifiedCount > 0,
-        matchedCount: result.matchedCount
-      })
+      this.logger.info(
+        `user_contact.store.success ${JSON.stringify({ operationId, contact: maskContact(contact), upserted: result.upsertedId !== null, modified: result.modifiedCount > 0, matchedCount: result.matchedCount })}`
+      )
 
       return {
         success: true,
@@ -75,13 +84,9 @@ class UserContactService {
         modified: result.modifiedCount > 0
       }
     } catch (error) {
-      this.logger.error('user_contact.store.error', {
-        operationId,
-        contact: '***' + contact.slice(-3),
-        error: error.message,
-        errorName: error.name,
-        stack: error.stack
-      })
+      this.logger.error(
+        `user_contact.store.error ${JSON.stringify({ operationId, contact: maskContact(contact), error: error.message, errorName: error.name })}`
+      )
       throw new Error(`Failed to store secret: ${error.message}`)
     }
   }
@@ -94,44 +99,35 @@ class UserContactService {
    */
   async validateSecret(contact, secret) {
     const operationId = `validate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    this.logger.info('user_contact.validate.start', {
-      operationId,
-      contact: contact ? '***' + contact.slice(-3) : 'undefined',
-      secretLength: secret?.length
-    })
+    this.logger.info(
+      `user_contact.validate.start ${JSON.stringify({ operationId, contact: maskContact(contact), secretLength: secret?.length })}`
+    )
 
     try {
-      this.logger.info('user_contact.validate.finding_document', {
-        operationId,
-        contact: '***' + contact.slice(-3)
-      })
+      this.logger.info(
+        `user_contact.validate.finding_document ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+      )
 
       const document = await this.collection.findOne({ contact })
 
       if (!document) {
-        this.logger.warn('user_contact.validate.document_not_found', {
-          operationId,
-          contact: '***' + contact.slice(-3)
-        })
+        this.logger.warn(
+          `user_contact.validate.document_not_found ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+        )
         return {
           valid: false,
           error: 'Contact Detail not found'
         }
       }
 
-      this.logger.info('user_contact.validate.document_found', {
-        operationId,
-        contact: '***' + contact.slice(-3),
-        documentCreatedAt: document.createdAt?.toISOString(),
-        documentExpiryTime: document.expiryTime?.toISOString(),
-        documentValidated: document.validated
-      })
+      this.logger.info(
+        `user_contact.validate.document_found ${JSON.stringify({ operationId, contact: maskContact(contact), documentCreatedAt: document.createdAt?.toISOString(), documentExpiryTime: document.expiryTime?.toISOString(), documentValidated: document.validated })}`
+      )
 
       if (document.secret !== secret) {
-        this.logger.warn('user_contact.validate.secret_mismatch', {
-          operationId,
-          contact: '***' + contact.slice(-3)
-        })
+        this.logger.warn(
+          `user_contact.validate.secret_mismatch ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+        )
         return {
           valid: false,
           error: 'Invalid secret'
@@ -141,12 +137,9 @@ class UserContactService {
       const now = new Date()
       const expiryTime = new Date(document.expiryTime)
       if (now > expiryTime) {
-        this.logger.warn('user_contact.validate.secret_expired', {
-          operationId,
-          contact: '***' + contact.slice(-3),
-          currentTime: now.toISOString(),
-          expiryTime: expiryTime.toISOString()
-        })
+        this.logger.warn(
+          `user_contact.validate.secret_expired ${JSON.stringify({ operationId, contact: maskContact(contact), currentTime: now.toISOString(), expiryTime: expiryTime.toISOString() })}`
+        )
         return {
           valid: false,
           error: 'Secret has expired'
@@ -154,20 +147,18 @@ class UserContactService {
       }
 
       if (document.validated) {
-        this.logger.warn('user_contact.validate.secret_already_used', {
-          operationId,
-          contact: '***' + contact.slice(-3)
-        })
+        this.logger.warn(
+          `user_contact.validate.secret_already_used ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+        )
         return {
           valid: false,
           error: 'Secret has already been used'
         }
       }
 
-      this.logger.info('user_contact.validate.marking_as_validated', {
-        operationId,
-        contact: '***' + contact.slice(-3)
-      })
+      this.logger.info(
+        `user_contact.validate.marking_as_validated ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+      )
 
       // Mark secret as validated
       const updateResult = await this.collection.updateOne(
@@ -181,32 +172,24 @@ class UserContactService {
       )
 
       if (updateResult.modifiedCount === 0) {
-        this.logger.error('user_contact.validate.failed_to_mark_validated', {
-          operationId,
-          contact: '***' + contact.slice(-3),
-          matchedCount: updateResult.matchedCount,
-          modifiedCount: updateResult.modifiedCount
-        })
+        this.logger.error(
+          `user_contact.validate.failed_to_mark_validated ${JSON.stringify({ operationId, contact: maskContact(contact), matchedCount: updateResult.matchedCount, modifiedCount: updateResult.modifiedCount })}`
+        )
         throw new Error('Failed to mark secret as validated')
       }
 
-      this.logger.info('user_contact.validate.success', {
-        operationId,
-        contact: '***' + contact.slice(-3)
-      })
+      this.logger.info(
+        `user_contact.validate.success ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+      )
 
       return {
         valid: true,
         error: null
       }
     } catch (error) {
-      this.logger.error('user_contact.validate.error', {
-        operationId,
-        contact: '***' + contact.slice(-3),
-        error: error.message,
-        errorName: error.name,
-        stack: error.stack
-      })
+      this.logger.error(
+        `user_contact.validate.error ${JSON.stringify({ operationId, contact: maskContact(contact), error: error.message, errorName: error.name })}`
+      )
       throw new Error(`Failed to validate secret: ${error.message}`)
     }
   }
@@ -218,31 +201,22 @@ class UserContactService {
    */
   async getUserByContact(contact) {
     const operationId = `get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    this.logger.info('user_contact.get.start', {
-      operationId,
-      contact: contact ? '***' + contact.slice(-3) : 'undefined'
-    })
+    this.logger.info(
+      `user_contact.get.start ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
+    )
 
     try {
       const result = await this.collection.findOne({ contact })
 
-      this.logger.info('user_contact.get.completed', {
-        operationId,
-        contact: '***' + contact.slice(-3),
-        found: !!result,
-        documentCreatedAt: result?.createdAt?.toISOString(),
-        documentValidated: result?.validated
-      })
+      this.logger.info(
+        `user_contact.get.completed ${JSON.stringify({ operationId, contact: maskContact(contact), found: !!result, documentCreatedAt: result?.createdAt?.toISOString(), documentValidated: result?.validated })}`
+      )
 
       return result
     } catch (error) {
-      this.logger.error('user_contact.get.error', {
-        operationId,
-        contact: '***' + contact.slice(-3),
-        error: error.message,
-        errorName: error.name,
-        stack: error.stack
-      })
+      this.logger.error(
+        `user_contact.get.error ${JSON.stringify({ operationId, contact: maskContact(contact), error: error.message, errorName: error.name })}`
+      )
       throw new Error(`Failed to get user: ${error.message}`)
     }
   }
@@ -281,12 +255,14 @@ class UserContactService {
         validated: false
       })
 
-      this.logger.info(`Cleaned up ${result.deletedCount} expired secrets`)
+      this.logger.info(
+        `user_contact.cleanup.success ${JSON.stringify({ deletedCount: result.deletedCount })}`
+      )
       return result.deletedCount
     } catch (error) {
-      this.logger.error('Failed to cleanup expired secrets', {
-        error: error.message
-      })
+      this.logger.error(
+        `user_contact.cleanup.error ${JSON.stringify({ error: error.message })}`
+      )
       throw new Error(`Failed to cleanup expired secrets: ${error.message}`)
     }
   }

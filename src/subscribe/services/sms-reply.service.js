@@ -2,6 +2,7 @@ import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 import { fetch } from 'undici'
 import { createNotificationService } from './notify-service.js'
+import { maskPhoneNumber } from '../../common/helpers/masking-utils.js'
 
 function createSmsReplyService(db, logger) {
   const client = new NotifyClient(config.get('notify.apiKey'))
@@ -14,8 +15,9 @@ function createSmsReplyService(db, logger) {
         const response = await client.getReceivedTexts()
         const messages = response.data.received_text_messages || []
 
-        logger.info(`{ totalMessages: ${messages.length} } sms_reply.poll`)
-        // logger.info({ totalMessages: messages.length }, 'sms_reply.poll')
+        logger.info(
+          `sms_reply.poll ${JSON.stringify({ totalMessages: messages.length })}`
+        )
 
         let newMessages = 0
         let alreadyProcessed = 0
@@ -31,8 +33,7 @@ function createSmsReplyService(db, logger) {
           newMessages++
         }
         logger.info(
-          `{ total: ${messages.length}, newMessages: ${newMessages}, alreadyProcessed: ${alreadyProcessed} }`,
-          `sms_reply.poll.complete`
+          `sms_reply.poll.complete ${JSON.stringify({ total: messages.length, newMessages, alreadyProcessed })}`
         )
         return { total: messages.length, processed: newMessages }
       } catch (error) {
@@ -48,12 +49,7 @@ function createSmsReplyService(db, logger) {
       const content = msg.content.trim().toLowerCase()
 
       logger.info(
-        `{
-          messageId: ${msg.id},
-          phoneNumber: '***' + ${phoneNumber.slice(-3)},
-          content: ${content}
-        }`,
-        `sms_reply.process`
+        `sms_reply.process ${JSON.stringify({ messageId: msg.id, phoneNumber: maskPhoneNumber(phoneNumber), content })}`
       )
 
       if (content === 'stop') {
@@ -67,11 +63,7 @@ function createSmsReplyService(db, logger) {
           'ignored'
         )
         logger.info(
-          `{
-            messageId: ${msg.id},
-            phoneNumber: '***' + ${phoneNumber.slice(-3)}
-          }`,
-          `sms_reply.ignored`
+          `sms_reply.ignored ${JSON.stringify({ messageId: msg.id, phoneNumber: maskPhoneNumber(phoneNumber) })}`
         )
       }
     },
@@ -88,11 +80,7 @@ function createSmsReplyService(db, logger) {
             'duplicate_stop'
           )
           logger.info(
-            `{
-              phoneNumber: '***' + ${phoneNumber.slice(-3)},
-              messageId: ${msg.id}
-            }`,
-            `sms_reply.stop.duplicate_in_batch`
+            `sms_reply.stop.duplicate_in_batch ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber), messageId: msg.id })}`
           )
           return
         }
@@ -121,11 +109,7 @@ function createSmsReplyService(db, logger) {
           processedPhones.add(phoneNumber)
 
           logger.info(
-            `{
-              phoneNumber: '***' + ${phoneNumber.slice(-3)},
-              messageId: ${msg.id}
-            }`,
-            `sms_reply.stop.unsubscribed`
+            `sms_reply.stop.unsubscribed ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber), messageId: msg.id })}`
           )
 
           // Send confirmation SMS
@@ -144,11 +128,7 @@ function createSmsReplyService(db, logger) {
           processedPhones.add(phoneNumber)
 
           logger.warn(
-            `{
-              phoneNumber: '***' + ${phoneNumber.slice(-3)},
-              messageId: ${msg.id}
-            }`,
-            `sms_reply.stop.user_not_found`
+            `sms_reply.stop.user_not_found ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber), messageId: msg.id })}`
           )
         } else {
           // Server error - don't mark as processed, will retry
@@ -156,11 +136,7 @@ function createSmsReplyService(db, logger) {
         }
       } catch (error) {
         logger.error(
-          `{
-            phoneNumber: '***' + ${phoneNumber.slice(-3)},
-            error: ${error.message}
-          }`,
-          `sms_reply.stop.failure`
+          `sms_reply.stop.failure ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber), error: error.message })}`
         )
         throw error
       }
@@ -190,10 +166,7 @@ function createSmsReplyService(db, logger) {
 
         if (!templateId) {
           logger.warn(
-            `{
-              phoneNumber: '***' + ${phoneNumber.slice(-3)}
-            }`,
-            `sms_reply.confirmation.no_template`
+            `sms_reply.confirmation.no_template ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber) })}`
           )
           return
         }
@@ -201,18 +174,11 @@ function createSmsReplyService(db, logger) {
         await notificationService.sendSms(phoneNumber, templateId, {})
 
         logger.info(
-          `{
-            phoneNumber: '***' + ${phoneNumber.slice(-3)}
-          }`,
-          `sms_reply.confirmation.sent`
+          `sms_reply.confirmation.sent ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber) })}`
         )
       } catch (error) {
         logger.error(
-          `{
-            phoneNumber: '***' + ${phoneNumber.slice(-3)},
-            error: ${error.message}
-          }`,
-          `sms_reply.confirmation.failed`
+          `sms_reply.confirmation.failed ${JSON.stringify({ phoneNumber: maskPhoneNumber(phoneNumber), error: error.message })}`
         )
       }
     }

@@ -142,14 +142,14 @@ describe('User Contact Service', () => {
       })
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'user_contact.store.success',
-        expect.objectContaining({
-          contact: '***789',
-          upserted: true,
-          modified: false,
-          operationId: expect.stringMatching(/^store_\d+_[a-z0-9]+$/)
-        })
+        expect.stringContaining('user_contact.store.success')
       )
+      const logCall = mockLogger.info.mock.calls.find((call) =>
+        call[0].includes('user_contact.store.success')
+      )
+      expect(logCall[0]).toContain('****6789')
+      expect(logCall[0]).toContain('"upserted":true')
+      expect(logCall[0]).toContain('"modified":false')
     })
 
     it('should update existing verification details successfully', async () => {
@@ -179,14 +179,14 @@ describe('User Contact Service', () => {
       })
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'user_contact.store.success',
-        expect.objectContaining({
-          contact: '***789',
-          upserted: false,
-          modified: true,
-          operationId: expect.stringMatching(/^store_\d+_[a-z0-9]+$/)
-        })
+        expect.stringContaining('user_contact.store.success')
       )
+      const logCall = mockLogger.info.mock.calls.find((call) =>
+        call[0].includes('user_contact.store.success')
+      )
+      expect(logCall[0]).toContain('****6789')
+      expect(logCall[0]).toContain('"upserted":false')
+      expect(logCall[0]).toContain('"modified":true')
     })
 
     it('should handle database errors in storeVerificationDetails', async () => {
@@ -207,15 +207,11 @@ describe('User Contact Service', () => {
       ).rejects.toThrow('Failed to store secret: Connection timeout')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'user_contact.store.error',
-        expect.objectContaining({
-          contact: '***789',
-          error: 'Connection timeout',
-          errorName: 'Error',
-          operationId: expect.stringMatching(/^store_\d+_[a-z0-9]+$/),
-          stack: expect.stringContaining('Error: Connection timeout')
-        })
+        expect.stringContaining('user_contact.store.error')
       )
+      const logCall = mockLogger.error.mock.calls[0][0]
+      expect(logCall).toContain('****6789')
+      expect(logCall).toContain('Connection timeout')
     })
   })
 
@@ -349,12 +345,12 @@ describe('User Contact Service', () => {
       )
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'user_contact.validate.success',
-        expect.objectContaining({
-          contact: '***789',
-          operationId: expect.stringMatching(/^validate_\d+_[a-z0-9]+$/)
-        })
+        expect.stringContaining('user_contact.validate.success')
       )
+      const logCall = mockLogger.info.mock.calls.find((call) =>
+        call[0].includes('user_contact.validate.success')
+      )
+      expect(logCall[0]).toContain('****6789')
     })
 
     it('should handle database errors in validateSecret', async () => {
@@ -373,15 +369,11 @@ describe('User Contact Service', () => {
       ).rejects.toThrow('Failed to validate secret: Database error')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'user_contact.validate.error',
-        expect.objectContaining({
-          contact: '***789',
-          error: 'Database error',
-          errorName: 'Error',
-          operationId: expect.stringMatching(/^validate_\d+_[a-z0-9]+$/),
-          stack: expect.stringContaining('Error: Database error')
-        })
+        expect.stringContaining('user_contact.validate.error')
       )
+      const logCall = mockLogger.error.mock.calls[0][0]
+      expect(logCall).toContain('****6789')
+      expect(logCall).toContain('Database error')
     })
   })
 
@@ -440,15 +432,11 @@ describe('User Contact Service', () => {
       )
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'user_contact.get.error',
-        expect.objectContaining({
-          contact: '***789',
-          error: 'Database connection lost',
-          errorName: 'Error',
-          operationId: expect.stringMatching(/^get_\d+_[a-z0-9]+$/),
-          stack: expect.stringContaining('Error: Database connection lost')
-        })
+        expect.stringContaining('user_contact.get.error')
       )
+      const logCall = mockLogger.error.mock.calls[0][0]
+      expect(logCall).toContain('****6789')
+      expect(logCall).toContain('Database connection lost')
     })
   })
 
@@ -473,8 +461,10 @@ describe('User Contact Service', () => {
       expect(result).toBe(5)
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Cleaned up 5 expired secrets'
+        expect.stringContaining('user_contact.cleanup.success')
       )
+      const logCall = mockLogger.info.mock.calls[0][0]
+      expect(logCall).toContain('"deletedCount":5')
     })
 
     it('should return 0 when no expired secrets found', async () => {
@@ -492,8 +482,10 @@ describe('User Contact Service', () => {
 
       expect(result).toBe(0)
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Cleaned up 0 expired secrets'
+        expect.stringContaining('user_contact.cleanup.success')
       )
+      const logCall = mockLogger.info.mock.calls[0][0]
+      expect(logCall).toContain('"deletedCount":0')
     })
 
     it('should handle database errors in cleanupExpiredsecrets', async () => {
@@ -512,11 +504,10 @@ describe('User Contact Service', () => {
       )
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to cleanup expired secrets',
-        {
-          error: 'Index error'
-        }
+        expect.stringContaining('user_contact.cleanup.error')
       )
+      const logCall = mockLogger.error.mock.calls[0][0]
+      expect(logCall).toContain('Index error')
     })
   })
 

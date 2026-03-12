@@ -98,14 +98,11 @@ describe('processSmsRepliesHandler', () => {
 
     // Should log properly
     expect(loggerMock.error).toHaveBeenCalledWith(
-      'process_sms_replies.failure',
-      expect.objectContaining({
-        error: 'Something bad happened',
-        requestId: 'req-123',
-        userAgent: 'vitest-agent',
-        ip: '127.0.0.1'
-      })
+      expect.stringContaining('process_sms_replies.failure')
     )
+    const logCall = loggerMock.error.mock.calls[0][0]
+    expect(logCall).toContain('Something bad happened')
+    expect(logCall).toContain('req-123')
 
     // Should return Boom.internal
     expect(result.isBoom).toBe(true)

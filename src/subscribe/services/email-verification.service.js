@@ -1,6 +1,7 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { v4 as uuidv4 } from 'uuid'
 import { config } from '../../config.js'
+import { maskEmail } from '../../common/helpers/masking-utils.js'
 
 /**
  * Service for managing email verification details in MongoDB
@@ -23,9 +24,9 @@ class EmailVerificationService {
       await this.collection.createIndex({ secret: 1 }, { unique: true })
       this.logger.info('email_verification.indexes.created')
     } catch (error) {
-      this.logger.warn('email_verification.indexes.error', {
-        error: error.message
-      })
+      this.logger.warn(
+        `email_verification.indexes.error ${JSON.stringify({ error: error.message })}`
+      )
     }
   }
 
@@ -52,13 +53,9 @@ class EmailVerificationService {
     const expiryTime = new Date(Date.now() + expiryMinutes * 60 * 1000)
     const cleanEmail = this.normalizeEmail(emailAddress)
 
-    this.logger.info('email_verification.store.start', {
-      operationId,
-      emailAddress: '***' + cleanEmail.slice(-10),
-      alertType,
-      location,
-      uuid: uuid.substring(0, 8) + '...'
-    })
+    this.logger.info(
+      `email_verification.store.start ${JSON.stringify({ operationId, emailAddress: maskEmail(cleanEmail), alertType, location, uuid: uuid.substring(0, 8) + '...' })}`
+    )
 
     try {
       const document = {
@@ -84,13 +81,9 @@ class EmailVerificationService {
         { upsert: true }
       )
 
-      this.logger.info('email_verification.store.success', {
-        operationId,
-        emailAddress: '***' + cleanEmail.slice(-10),
-        uuid: uuid.substring(0, 8) + '...',
-        upserted: result.upsertedId !== null,
-        modified: result.modifiedCount > 0
-      })
+      this.logger.info(
+        `email_verification.store.success ${JSON.stringify({ operationId, emailAddress: maskEmail(cleanEmail), uuid: uuid.substring(0, 8) + '...', upserted: result.upsertedId !== null, modified: result.modifiedCount > 0 })}`
+      )
 
       return {
         success: true,
@@ -101,13 +94,9 @@ class EmailVerificationService {
         expiryTime
       }
     } catch (error) {
-      this.logger.error('email_verification.store.error', {
-        operationId,
-        emailAddress: '***' + cleanEmail.slice(-10),
-        error: error.message,
-        errorName: error.name,
-        stack: error.stack
-      })
+      this.logger.error(
+        `email_verification.store.error ${JSON.stringify({ operationId, emailAddress: maskEmail(cleanEmail), error: error.message, errorName: error.name })}`
+      )
       throw new Error(`Failed to store email verification: ${error.message}`)
     }
   }
@@ -118,31 +107,24 @@ class EmailVerificationService {
   async getVerificationByUuid(uuid) {
     const operationId = `get_email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    this.logger.info('email_verification.get.start', {
-      operationId,
-      uuid: uuid.substring(0, 8) + '...'
-    })
+    this.logger.info(
+      `email_verification.get.start ${JSON.stringify({ operationId, uuid: uuid.substring(0, 8) + '...' })}`
+    )
 
     try {
       const result = await this.collection.findOne({
         secret: uuid
       })
 
-      this.logger.info('email_verification.get.completed', {
-        operationId,
-        uuid: uuid.substring(0, 8) + '...',
-        found: !!result
-      })
+      this.logger.info(
+        `email_verification.get.completed ${JSON.stringify({ operationId, uuid: uuid.substring(0, 8) + '...', found: !!result })}`
+      )
 
       return result
     } catch (error) {
-      this.logger.error('email_verification.get.error', {
-        operationId,
-        uuid: uuid.substring(0, 8) + '...',
-        error: error.message,
-        errorName: error.name,
-        stack: error.stack
-      })
+      this.logger.error(
+        `email_verification.get.error ${JSON.stringify({ operationId, uuid: uuid.substring(0, 8) + '...', error: error.message, errorName: error.name })}`
+      )
       throw new Error(`Failed to get verification: ${error.message}`)
     }
   }
@@ -178,10 +160,9 @@ class EmailVerificationService {
         data: verification.verificationData
       }
     } catch (error) {
-      this.logger.error('email_verification.validate.error', {
-        uuid: uuid.substring(0, 8) + '...',
-        error: error.message
-      })
+      this.logger.error(
+        `email_verification.validate.error ${JSON.stringify({ uuid: uuid.substring(0, 8) + '...', error: error.message })}`
+      )
       return { error: 'Failed to validate link' }
     }
   }

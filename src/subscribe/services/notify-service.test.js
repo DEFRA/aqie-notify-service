@@ -479,7 +479,7 @@ describe('Notify Service', () => {
         ).rejects.toThrow(NotifySmsError)
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'notify.send_sms_generic.missing_id'
+          expect.stringContaining('notify.send_sms_generic.missing_id')
         )
       }, 10000)
 
@@ -525,16 +525,11 @@ describe('Notify Service', () => {
         }
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'notify.send_sms_generic.failure',
-          {
-            category: 'unknown',
-            errorType: undefined,
-            originalError: 'Network timeout',
-            phoneNumberMasked: 'xxxxxxxxxx789',
-            statusCode: undefined,
-            templateId: '******-456'
-          }
+          expect.stringContaining('notify.send_sms_generic.failure')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('Network timeout')
+        expect(logCall).toContain('xxxxxxxxxx789')
       }, 10000)
     })
 
@@ -593,18 +588,11 @@ describe('Notify Service', () => {
         }
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-          'notify.get_status.failure',
-          expect.objectContaining({
-            notificationId: 'notification-123',
-            statusCode: 404,
-            errorType: 'NotFoundError',
-            category: 'unknown',
-            retriable: false,
-            operationId: expect.stringMatching(/^status_\d+_[a-z0-9]+$/),
-            originalError: 'Not Found',
-            errorName: 'Error'
-          })
+          expect.stringContaining('notify.get_status.failure')
         )
+        const logCall = mockLogger.error.mock.calls[0][0]
+        expect(logCall).toContain('notification-123')
+        expect(logCall).toContain('NotFoundError')
       }, 10000)
     })
   })

@@ -1,10 +1,10 @@
 import { createNotificationService } from '../services/notify-service.js'
 import Boom from '@hapi/boom'
 import {
-  maskMsisdn,
-  maskEmail,
   maskTemplateId,
-  generateOperationId
+  generateOperationId,
+  maskPhoneNumber,
+  maskEmail
 } from '../../common/helpers/masking-utils.js'
 
 const HTTP_STATUS_CREATED = 201
@@ -18,12 +18,7 @@ export async function sendNotificationHandler(request, h) {
     request.payload
 
   request.logger.info(
-    {
-      requestId,
-      contactType: phoneNumber ? 'sms' : 'email',
-      templateId: maskTemplateId(templateId)
-    },
-    `notification.send.requested [${requestId}] ${phoneNumber ? 'SMS to ' + maskMsisdn(phoneNumber) : 'EMAIL to ' + (emailAddress ? maskEmail(emailAddress) : 'unknown')} template=${maskTemplateId(templateId)}`
+    `notification.send.requested ${JSON.stringify({ requestId, contactType: maskPhoneNumber(phoneNumber) ? 'sms' : 'email' + maskEmail(emailAddress), templateId: maskTemplateId(templateId) })}`
   )
 
   try {
@@ -37,12 +32,7 @@ export async function sendNotificationHandler(request, h) {
     )
 
     request.logger.info(
-      {
-        requestId,
-        notificationId: response.notificationId,
-        contactType: phoneNumber ? 'sms' : 'email'
-      },
-      `notification.send.success [${requestId}] notificationId=${response.notificationId}`
+      `notification.send.success ${JSON.stringify({ requestId, notificationId: response.notificationId, contactType: phoneNumber ? 'sms' : 'email' })}`
     )
 
     return h
@@ -52,12 +42,9 @@ export async function sendNotificationHandler(request, h) {
       })
       .code(HTTP_STATUS_CREATED)
   } catch (err) {
-    request.logger.error(`notification.send.failed [${requestId}]`, {
-      requestId,
-      error: err.message,
-      contactType: phoneNumber ? 'sms' : 'email',
-      templateId: maskTemplateId(templateId)
-    })
+    request.logger.error(
+      `notification.send.failed ${JSON.stringify({ requestId, error: err.message, contactType: phoneNumber ? 'sms' : 'email', templateId: maskTemplateId(templateId) })}`
+    )
     return Boom.failedDependency('Failed to send notification')
   }
 }

@@ -24,7 +24,9 @@ async function validateLinkHandler(request, h) {
       })
       .code(HTTP_STATUS_OK)
   } catch (err) {
-    request.logger.error('Failed to validate link', { error: err.message })
+    request.logger.error(
+      `validate_link.failure ${JSON.stringify({ error: err.message })}`
+    )
     return Boom.internal('Failed to validate link')
   }
 }
