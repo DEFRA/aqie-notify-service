@@ -137,11 +137,27 @@ class EmailVerificationService {
       const verification = await this.getVerificationByUuid(uuid)
 
       if (!verification) {
-        return { error: 'Invalid verification link' }
+        return {
+          error: 'Invalid verification link',
+          data: null
+        }
+      }
+
+      // Return user details even if expired or already validated
+      const userData = verification.verificationData
+
+      if (verification.validated) {
+        return {
+          error: 'Link has already been validated',
+          data: userData
+        }
       }
 
       if (new Date() > verification.expiryTime) {
-        return { error: 'Verification link has expired' }
+        return {
+          error: 'Verification link has expired',
+          data: userData
+        }
       }
 
       // Mark as validated
@@ -157,13 +173,16 @@ class EmailVerificationService {
 
       return {
         valid: true,
-        data: verification.verificationData
+        data: userData
       }
     } catch (error) {
       this.logger.error(
         `email_verification.validate.error ${JSON.stringify({ uuid: uuid.substring(0, 8) + '...', error: error.message })}`
       )
-      return { error: 'Failed to validate link' }
+      return {
+        error: 'Failed to validate link',
+        data: null
+      }
     }
   }
 }
