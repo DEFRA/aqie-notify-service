@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { randomUUID } from 'crypto'
 
 /**
  * Generates a secure 5-digit OTP
@@ -19,7 +20,7 @@ function generateOTP() {
  * @returns {object} - Object containing OTP and expiry timestamp
  */
 function generateOTPWithExpiry(expiryMinutes = 24 * 60) {
-  const operationId = `otp_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const operationId = `otp_gen_${randomUUID()}`
 
   // Simple console logging to avoid circular dependencies
   console.log(`[${new Date().toISOString()}] otp.generate.start`, {

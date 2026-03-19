@@ -147,7 +147,7 @@ describe('User Contact Service', () => {
       const logCall = mockLogger.info.mock.calls.find((call) =>
         call[0].includes('user_contact.store.success')
       )
-      expect(logCall[0]).toContain('****6789')
+      expect(logCall[0]).toContain('***789')
       expect(logCall[0]).toContain('"upserted":true')
       expect(logCall[0]).toContain('"modified":false')
     })
@@ -184,7 +184,7 @@ describe('User Contact Service', () => {
       const logCall = mockLogger.info.mock.calls.find((call) =>
         call[0].includes('user_contact.store.success')
       )
-      expect(logCall[0]).toContain('****6789')
+      expect(logCall[0]).toContain('***789')
       expect(logCall[0]).toContain('"upserted":false')
       expect(logCall[0]).toContain('"modified":true')
     })
@@ -210,7 +210,7 @@ describe('User Contact Service', () => {
         expect.stringContaining('user_contact.store.error')
       )
       const logCall = mockLogger.error.mock.calls[0][0]
-      expect(logCall).toContain('****6789')
+      expect(logCall).toContain('***789')
       expect(logCall).toContain('Connection timeout')
     })
   })
@@ -350,7 +350,7 @@ describe('User Contact Service', () => {
       const logCall = mockLogger.info.mock.calls.find((call) =>
         call[0].includes('user_contact.validate.success')
       )
-      expect(logCall[0]).toContain('****6789')
+      expect(logCall[0]).toContain('***789')
     })
 
     it('should handle database errors in validateSecret', async () => {
@@ -372,7 +372,7 @@ describe('User Contact Service', () => {
         expect.stringContaining('user_contact.validate.error')
       )
       const logCall = mockLogger.error.mock.calls[0][0]
-      expect(logCall).toContain('****6789')
+      expect(logCall).toContain('***789')
       expect(logCall).toContain('Database error')
     })
   })
@@ -435,7 +435,7 @@ describe('User Contact Service', () => {
         expect.stringContaining('user_contact.get.error')
       )
       const logCall = mockLogger.error.mock.calls[0][0]
-      expect(logCall).toContain('****6789')
+      expect(logCall).toContain('***789')
       expect(logCall).toContain('Database connection lost')
     })
   })

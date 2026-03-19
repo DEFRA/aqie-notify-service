@@ -2,6 +2,7 @@ import Boom from '@hapi/boom'
 import { createOtpService } from '../services/otp.service.js'
 import { createNotificationService } from '../services/notify-service.js'
 import { config } from '../../config.js'
+import { randomUUID } from 'crypto'
 import { maskPhoneNumber } from '../../common/helpers/masking-utils.js'
 
 // Define HTTP status codes as constants
@@ -13,7 +14,7 @@ function generateRequestId(request) {
   return (
     request.headers['x-cdp-request-id'] ||
     request.info.id ||
-    `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    `req_${randomUUID()}`
   )
 }
 

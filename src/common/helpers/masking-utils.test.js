@@ -39,14 +39,24 @@ describe('masking-utils', () => {
   })
 
   describe('generateOperationId', () => {
-    it('should generate operation ID with prefix', () => {
+    it('should generate operation ID with prefix and UUID', () => {
       const id = generateOperationId('test')
-      expect(id).toMatch(/^test_\d+_[a-z0-9]+$/)
+      expect(id).toMatch(
+        /^test_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      )
     })
 
-    it('should use default prefix', () => {
+    it('should use default prefix with UUID', () => {
       const id = generateOperationId()
-      expect(id).toMatch(/^op_\d+_[a-z0-9]+$/)
+      expect(id).toMatch(
+        /^op_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      )
+    })
+
+    it('should generate unique IDs', () => {
+      const id1 = generateOperationId('test')
+      const id2 = generateOperationId('test')
+      expect(id1).not.toBe(id2)
     })
   })
 })

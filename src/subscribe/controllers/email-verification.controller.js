@@ -2,6 +2,8 @@ import Boom from '@hapi/boom'
 import { createNotificationService } from '../services/notify-service.js'
 import { createEmailVerificationService } from '../services/email-verification.service.js'
 import { config } from '../../config.js'
+import { randomUUID } from 'crypto'
+import { maskEmail, maskUuid } from '../../common/helpers/masking-utils.js'
 
 const HTTP_STATUS_CREATED = 201
 
@@ -9,17 +11,17 @@ async function generateLinkHandler(request, h) {
   const requestId =
     request.headers['x-cdp-request-id'] ||
     request.info.id ||
-    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    `req_${randomUUID()}`
 
   request.logger.info(
-    `email.generate_link.requested ${JSON.stringify({ requestId, emailAddress: request.payload?.emailAddress ? '***' + request.payload.emailAddress.slice(-10) : 'undefined', alertType: request.payload?.alertType, location: request.payload?.location, userAgent: request.headers['user-agent'], ip: request.info.remoteAddress })}`
+    `email.generate_link.requested ${JSON.stringify({ requestId, emailAddress: request.payload?.emailAddress ? maskEmail(request.payload.emailAddress) : 'undefined', alertType: request.payload?.alertType, location: request.payload?.location, userAgent: request.headers['user-agent'], ip: request.info.remoteAddress })}`
   )
 
   try {
     const { emailAddress, alertType, location, lat, long } = request.payload
 
     request.logger.info(
-      `email.generate_link.start ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), alertType, location })}`
+      `email.generate_link.start ${JSON.stringify({ requestId, emailAddress: maskEmail(emailAddress), alertType, location })}`
     )
 
     const emailVerificationService = createEmailVerificationService(
@@ -35,12 +37,12 @@ async function generateLinkHandler(request, h) {
     )
 
     request.logger.info(
-      `email.generate_link.stored ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), uuid: result.uuid.substring(0, 8) + '...', success: result.success })}`
+      `email.generate_link.stored ${JSON.stringify({ requestId, emailAddress: maskEmail(emailAddress), uuid: maskUuid(result.uuid), success: result.success })}`
     )
 
     try {
       request.logger.info(
-        `email.generate_link.notification_start ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), templateId: config.get('notify.emailTemplateId') })}`
+        `email.generate_link.notification_start ${JSON.stringify({ requestId, emailAddress: maskEmail(emailAddress), templateId: config.get('notify.emailTemplateId') })}`
       )
 
       const notificationService = createNotificationService()
@@ -55,7 +57,7 @@ async function generateLinkHandler(request, h) {
       )
 
       request.logger.info(
-        `email.generate_link.notification_success ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), notificationId, uuid: result.uuid.substring(0, 8) + '...' })}`
+        `email.generate_link.notification_success ${JSON.stringify({ requestId, emailAddress: maskEmail(emailAddress), notificationId, uuid: maskUuid(result.uuid) })}`
       )
 
       return h
@@ -66,7 +68,7 @@ async function generateLinkHandler(request, h) {
         .code(HTTP_STATUS_CREATED)
     } catch (error_) {
       request.logger.error(
-        `email.generate_link.notification_failed ${JSON.stringify({ requestId, emailAddress: '***' + emailAddress.slice(-10), error: error_.message, errorName: error_.name, stack: error_.stack })}`
+        `email.generate_link.notification_failed ${JSON.stringify({ requestId, emailAddress: maskEmail(emailAddress), error: error_.message, errorName: error_.name, stack: error_.stack })}`
       )
       return h
         .response({

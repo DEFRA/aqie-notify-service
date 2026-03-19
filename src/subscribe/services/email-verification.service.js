@@ -1,6 +1,7 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { v4 as uuidv4 } from 'uuid'
 import { config } from '../../config.js'
+import { randomUUID } from 'crypto'
 import { maskEmail } from '../../common/helpers/masking-utils.js'
 
 /**
@@ -12,7 +13,6 @@ class EmailVerificationService {
     this.db = db
     this.logger = logger || createLogger()
     this.collection = db.collection('user-email-verification-details')
-    this.ensureIndexes()
   }
 
   /**
@@ -48,7 +48,7 @@ class EmailVerificationService {
     long,
     expiryMinutes = 15
   ) {
-    const operationId = `store_email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const operationId = `store_email_${randomUUID()}`
     const uuid = uuidv4()
     const expiryTime = new Date(Date.now() + expiryMinutes * 60 * 1000)
     const cleanEmail = this.normalizeEmail(emailAddress)
@@ -105,7 +105,7 @@ class EmailVerificationService {
    * Get verification details by UUID
    */
   async getVerificationByUuid(uuid) {
-    const operationId = `get_email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const operationId = `get_email_${randomUUID()}`
 
     this.logger.info(
       `email_verification.get.start ${JSON.stringify({ operationId, uuid: uuid.substring(0, 8) + '...' })}`
@@ -190,8 +190,10 @@ class EmailVerificationService {
 /**
  * Factory function to create EmailVerificationService instance
  */
-function createEmailVerificationService(db, logger) {
-  return new EmailVerificationService(db, logger)
+async function createEmailVerificationService(db, logger) {
+  const service = new EmailVerificationService(db, logger)
+  await service.ensureIndexes()
+  return service
 }
 
 export { EmailVerificationService, createEmailVerificationService }

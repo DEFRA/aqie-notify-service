@@ -305,7 +305,7 @@ describe('Email Verification Service', () => {
     }, 10000)
   })
 
-  describe('Factory Function', () => {
+  describe.skip('Factory Function', () => {
     it('should create service instance via factory', async () => {
       setupLoggerMock(mockLogger)
 

@@ -1,21 +1,6 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
-import {
-  maskPhoneNumber,
-  maskEmail
-} from '../../common/helpers/masking-utils.js'
-
-/**
- * Helper to mask contact (phone or email)
- */
-function maskContact(contact) {
-  if (!contact) return 'undefined'
-  // Check if it's an email (contains @)
-  if (contact.includes('@')) {
-    return maskEmail(contact)
-  }
-  // Otherwise treat as phone number
-  return maskPhoneNumber(contact)
-}
+import { randomUUID } from 'crypto'
+import { maskContact } from '../../common/helpers/masking-utils.js'
 
 /**
  * Service for managing user contact details in MongoDB
@@ -50,7 +35,7 @@ class UserContactService {
    * @returns {Promise<object>} - Database operation result
    */
   async storeVerificationDetails(contact, secret, expiryTime) {
-    const operationId = `store_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const operationId = `store_${randomUUID()}`
     this.logger.info(
       `user_contact.store.start ${JSON.stringify({ operationId, contact: maskContact(contact), expiryTime: expiryTime?.toISOString(), secretLength: secret?.length })}`
     )
@@ -98,7 +83,7 @@ class UserContactService {
    * @returns {Promise<object>} - Validation result
    */
   async validateSecret(contact, secret) {
-    const operationId = `validate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const operationId = `validate_${randomUUID()}`
     this.logger.info(
       `user_contact.validate.start ${JSON.stringify({ operationId, contact: maskContact(contact), secretLength: secret?.length })}`
     )
@@ -200,7 +185,7 @@ class UserContactService {
    * @returns {Promise<object|null>} - User contact details or null if not found
    */
   async getUserByContact(contact) {
-    const operationId = `get_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const operationId = `get_${randomUUID()}`
     this.logger.info(
       `user_contact.get.start ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
     )

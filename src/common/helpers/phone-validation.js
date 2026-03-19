@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto'
+
 /**
  * UK Phone Number Validation Utility
  * Validates UK mobile and landline numbers according to Ofcom numbering plan
@@ -68,7 +70,7 @@ function normalizeUKPhoneNumber(phoneNumber) {
  * @returns {object} - Object containing isValid boolean and normalized number
  */
 function validateAndNormalizeUKPhoneNumber(phoneNumber) {
-  const operationId = `validate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const operationId = `validate_${randomUUID()}`
 
   // Simple console logging to avoid circular dependencies
   console.log(`[${new Date().toISOString()}] phone.validate.start`, {
