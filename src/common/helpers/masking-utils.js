@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto'
 /**
  * Utility functions for masking sensitive data in logs
  */
+const SLICING_THREE_DIGITS = -3
+const SLICING_FOUR_DIGITS = -4
 
 /**
  * Mask MSISDN for logs
@@ -11,8 +13,11 @@ function maskMsisdn(msisdn) {
   if (!msisdn) {
     return undefined
   }
-  const visible = msisdn.slice(-3)
-  return msisdn.slice(0, msisdn.length - 3).replace(/./g, 'x') + visible
+  const visible = msisdn.slice(SLICING_THREE_DIGITS)
+  return (
+    msisdn.slice(0, msisdn.length + SLICING_THREE_DIGITS).replace(/./g, 'x') +
+    visible
+  )
 }
 
 /**
@@ -42,7 +47,7 @@ function maskTemplateId(templateId) {
   if (templateId.length <= 4) {
     return '***'
   }
-  const lastFour = templateId.slice(-4)
+  const lastFour = templateId.slice(SLICING_FOUR_DIGITS)
   const firstHalf = templateId.slice(0, Math.floor(templateId.length / 2))
   return firstHalf.replace(/./g, '*') + lastFour
 }
@@ -58,14 +63,16 @@ function maskPhoneNumber(phoneNumber) {
   if (!phoneNumber || typeof phoneNumber !== 'string') {
     return null
   }
-  return phoneNumber.length > 4 ? `****${phoneNumber.slice(-4)}` : '****'
+  return phoneNumber.length > 4
+    ? `****${phoneNumber.slice(SLICING_FOUR_DIGITS)}`
+    : '****'
 }
 
 function maskUuid(uuid) {
   if (!uuid) {
     return undefined
   }
-  const last4 = uuid.slice(-4)
+  const last4 = uuid.slice(SLICING_FOUR_DIGITS)
   return '****' + last4
 }
 
@@ -81,7 +88,7 @@ function maskContact(contact) {
     return maskEmail(contact)
   }
   // Otherwise treat as phone number
-  return contact ? '***' + contact.slice(-3) : undefined
+  return contact ? '***' + contact.slice(SLICING_THREE_DIGITS) : undefined
 }
 
 export {
