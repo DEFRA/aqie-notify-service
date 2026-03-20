@@ -2,7 +2,7 @@ import Boom from '@hapi/boom'
 import { createNotificationService } from '../services/notify-service.js'
 import { createEmailVerificationService } from '../services/email-verification.service.js'
 import { config } from '../../config.js'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 import { maskEmail, maskUuid } from '../../common/helpers/masking-utils.js'
 
 const HTTP_STATUS_CREATED = 201

@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 
 /**
  * Utility functions for masking sensitive data in logs
@@ -55,7 +55,9 @@ function generateOperationId(prefix = 'op') {
 }
 
 function maskPhoneNumber(phoneNumber) {
-  if (!phoneNumber || typeof phoneNumber !== 'string') return null
+  if (!phoneNumber || typeof phoneNumber !== 'string') {
+    return null
+  }
   return phoneNumber.length > 4 ? `****${phoneNumber.slice(-4)}` : '****'
 }
 

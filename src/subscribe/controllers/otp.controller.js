@@ -2,7 +2,7 @@ import Boom from '@hapi/boom'
 import { createOtpService } from '../services/otp.service.js'
 import { createNotificationService } from '../services/notify-service.js'
 import { config } from '../../config.js'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 import { maskPhoneNumber } from '../../common/helpers/masking-utils.js'
 
 // Define HTTP status codes as constants

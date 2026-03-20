@@ -1,5 +1,5 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 import { maskContact } from '../../common/helpers/masking-utils.js'
 
 /**

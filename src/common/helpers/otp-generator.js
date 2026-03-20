@@ -1,5 +1,4 @@
-import crypto from 'node:crypto'
-import { randomUUID } from 'crypto'
+import { crypto, randomUUID } from 'node:crypto'
 
 /**
  * Generates a secure 5-digit OTP

@@ -1,7 +1,7 @@
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { v4 as uuidv4 } from 'uuid'
 import { config } from '../../config.js'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 import { maskEmail } from '../../common/helpers/masking-utils.js'
 
 /**

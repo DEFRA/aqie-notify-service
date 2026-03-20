@@ -3,6 +3,7 @@ import { createEmailVerificationService } from '../services/email-verification.s
 import { maskEmail } from '../../common/helpers/masking-utils.js'
 
 const HTTP_STATUS_OK = 200
+const HTTP_STATUS_VALIDATION_FAILURE = 400
 
 async function validateLinkHandler(request, h) {
   try {
@@ -23,7 +24,7 @@ async function validateLinkHandler(request, h) {
       if (result.data) {
         return h
           .response({
-            statusCode: 400,
+            statusCode: HTTP_STATUS_VALIDATION_FAILURE,
             error: 'Bad Request',
             message: result.error,
             emailAddress: result.data.emailAddress,
@@ -32,7 +33,7 @@ async function validateLinkHandler(request, h) {
             lat: result.data.lat,
             long: result.data.long
           })
-          .code(400)
+          .code(HTTP_STATUS_VALIDATION_FAILURE)
       }
       return Boom.badRequest(result.error)
     }
