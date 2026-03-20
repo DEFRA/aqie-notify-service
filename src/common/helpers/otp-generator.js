@@ -1,4 +1,4 @@
-import { crypto, randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 
 /**
  * Generates a secure 5-digit OTP
@@ -9,8 +9,8 @@ function generateOTP() {
   const min = 10000
   const max = 99999
 
-  // Use crypto.randomInt for cryptographically secure random number
-  return crypto.randomInt(min, max + 1).toString()
+  // Use randomInt for cryptographically secure random number
+  return randomInt(min, max + 1).toString()
 }
 
 /**
