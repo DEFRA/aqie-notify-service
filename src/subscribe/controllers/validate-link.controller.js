@@ -8,7 +8,7 @@ const HTTP_STATUS_VALIDATION_FAILURE = 400
 async function validateLinkHandler(request, h) {
   try {
     const { uuid } = request.params
-    const emailVerificationService = createEmailVerificationService(
+    const emailVerificationService = await createEmailVerificationService(
       request.db,
       request.logger
     )

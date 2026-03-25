@@ -24,7 +24,7 @@ async function generateLinkHandler(request, h) {
       `email.generate_link.start ${JSON.stringify({ requestId, emailAddress: maskEmail(emailAddress), alertType, location })}`
     )
 
-    const emailVerificationService = createEmailVerificationService(
+    const emailVerificationService = await createEmailVerificationService(
       request.db,
       request.logger
     )
