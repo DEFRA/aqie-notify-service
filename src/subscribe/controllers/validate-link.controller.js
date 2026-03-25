@@ -1,7 +1,9 @@
 import Boom from '@hapi/boom'
 import { createEmailVerificationService } from '../services/email-verification.service.js'
 import { maskEmail } from '../../common/helpers/masking-utils.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
 
+const logger = createLogger()
 const HTTP_STATUS_OK = 200
 const HTTP_STATUS_VALIDATION_FAILURE = 400
 
@@ -10,13 +12,13 @@ async function validateLinkHandler(request, h) {
     const { uuid } = request.params
     const emailVerificationService = await createEmailVerificationService(
       request.db,
-      request.logger
+      logger
     )
 
     const result = await emailVerificationService.validateLink(uuid)
 
     if (result.error) {
-      request.logger.warn(
+      logger.warn(
         `validate_link.validation_failed ${JSON.stringify({ error: result.error, hasData: !!result.data })}`
       )
 
@@ -38,7 +40,7 @@ async function validateLinkHandler(request, h) {
       return Boom.badRequest(result.error)
     }
 
-    request.logger.info(
+    logger.info(
       `validate_link.success ${JSON.stringify({ emailAddress: result.data?.emailAddress ? maskEmail(result.data.emailAddress) : undefined })}`
     )
 
@@ -53,7 +55,7 @@ async function validateLinkHandler(request, h) {
       })
       .code(HTTP_STATUS_OK)
   } catch (err) {
-    request.logger.error(
+    logger.error(
       `validate_link.unexpected_error ${JSON.stringify({ error: err.message, errorName: err.name })}`
     )
     return Boom.internal('Failed to validate link')

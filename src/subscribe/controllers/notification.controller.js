@@ -6,7 +6,9 @@ import {
   maskPhoneNumber,
   maskEmail
 } from '../../common/helpers/masking-utils.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
 
+const logger = createLogger()
 const HTTP_STATUS_CREATED = 201
 
 export async function sendNotificationHandler(request, h) {
@@ -17,7 +19,7 @@ export async function sendNotificationHandler(request, h) {
   const { phoneNumber, emailAddress, templateId, personalisation } =
     request.payload
 
-  request.logger.info(
+  logger.info(
     `notification.send.requested ${JSON.stringify({ requestId, contactType: maskPhoneNumber(phoneNumber) ? 'sms' : 'email' + maskEmail(emailAddress), templateId: maskTemplateId(templateId) })}`
   )
 
@@ -31,7 +33,7 @@ export async function sendNotificationHandler(request, h) {
       requestId
     )
 
-    request.logger.info(
+    logger.info(
       `notification.send.success ${JSON.stringify({ requestId, notificationId: response.notificationId, contactType: phoneNumber ? 'sms' : 'email' })}`
     )
 
@@ -42,7 +44,7 @@ export async function sendNotificationHandler(request, h) {
       })
       .code(HTTP_STATUS_CREATED)
   } catch (err) {
-    request.logger.error(
+    logger.error(
       `notification.send.failed ${JSON.stringify({ requestId, error: err.message, contactType: phoneNumber ? 'sms' : 'email', templateId: maskTemplateId(templateId) })}`
     )
     return Boom.failedDependency('Failed to send notification')

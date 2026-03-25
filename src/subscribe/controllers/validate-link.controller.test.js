@@ -1,10 +1,23 @@
+import { createEmailVerificationService } from '../services/email-verification.service.js'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { validateLinkHandler } from './validate-link.controller.js'
-import { createEmailVerificationService } from '../services/email-verification.service.js'
 
 const mockEmailVerificationService = {
   validateLink: vi.fn()
 }
+
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
+  }
+}))
+
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: vi.fn(() => mockLogger)
+}))
 
 vi.mock('../services/email-verification.service.js', () => ({
   createEmailVerificationService: vi.fn(() => mockEmailVerificationService)
@@ -14,13 +27,6 @@ describe('Validate Link Controller', () => {
   const mockH = {
     response: vi.fn().mockReturnThis(),
     code: vi.fn().mockReturnThis()
-  }
-
-  const mockLogger = {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn()
   }
 
   const mockDb = {}
@@ -34,7 +40,6 @@ describe('Validate Link Controller', () => {
       params: { uuid: '123e4567-e89b-12d3-a456-426614174000' },
       headers: { 'x-cdp-request-id': 'test-request-id' },
       info: { id: 'test-request-id', remoteAddress: '127.0.0.1' },
-      logger: mockLogger,
       db: mockDb
     }
 

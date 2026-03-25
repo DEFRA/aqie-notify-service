@@ -1,12 +1,14 @@
 import Boom from '@hapi/boom'
 import { createSmsReplyService } from '../services/sms-reply.service.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
 
+const logger = createLogger()
 const HTTP_STATUS_OK = 200
 
 // Manual trigger endpoint (for testing/debugging)
 async function processSmsRepliesHandler(request, h) {
   try {
-    const smsReplyService = createSmsReplyService(request.db, request.logger)
+    const smsReplyService = createSmsReplyService(request.db, logger)
     const result = await smsReplyService.pollAndProcessReplies()
 
     return h
@@ -17,7 +19,7 @@ async function processSmsRepliesHandler(request, h) {
       })
       .code(HTTP_STATUS_OK)
   } catch (err) {
-    request.logger.error(
+    logger.error(
       `process_sms_replies.failure ${JSON.stringify({ error: err.message, requestId: request.headers['x-cdp-request-id'] || request.info.id, userAgent: request.headers['user-agent'], ip: request.info.remoteAddress })}`
     )
     return Boom.internal('Failed to process SMS replies')

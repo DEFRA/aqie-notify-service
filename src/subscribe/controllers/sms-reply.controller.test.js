@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-import { processSmsRepliesHandler } from './sms-reply.controller.js'
 import { createSmsReplyService } from '../services/sms-reply.service.js'
+import { processSmsRepliesHandler } from './sms-reply.controller.js'
+
+// Mock logger
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    error: vi.fn(),
+    info: vi.fn()
+  }
+}))
+
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: vi.fn(() => mockLogger)
+}))
 
 // Mock the service factory
 vi.mock('../services/sms-reply.service.js', () => ({
@@ -11,7 +22,6 @@ vi.mock('../services/sms-reply.service.js', () => ({
 describe('processSmsRepliesHandler', () => {
   let request
   let h
-  let loggerMock
   let pollAndProcessRepliesMock
 
   beforeEach(() => {
@@ -20,16 +30,9 @@ describe('processSmsRepliesHandler', () => {
 
     pollAndProcessRepliesMock = vi.fn()
 
-    // Fake logger
-    loggerMock = {
-      error: vi.fn(),
-      info: vi.fn()
-    }
-
     // Mock request object
     request = {
       db: {},
-      logger: loggerMock,
       headers: {
         'x-cdp-request-id': 'req-123',
         'user-agent': 'vitest-agent'
@@ -67,10 +70,7 @@ describe('processSmsRepliesHandler', () => {
     const result = await processSmsRepliesHandler(request, h)
 
     // Should have created the service correctly
-    expect(createSmsReplyService).toHaveBeenCalledWith(
-      request.db,
-      request.logger
-    )
+    expect(createSmsReplyService).toHaveBeenCalledWith(request.db, mockLogger)
 
     // Response formation
     expect(h.response).toHaveBeenCalledWith({
@@ -97,10 +97,10 @@ describe('processSmsRepliesHandler', () => {
     const result = await processSmsRepliesHandler(request, h)
 
     // Should log properly
-    expect(loggerMock.error).toHaveBeenCalledWith(
+    expect(mockLogger.error).toHaveBeenCalledWith(
       expect.stringContaining('process_sms_replies.failure')
     )
-    const logCall = loggerMock.error.mock.calls[0][0]
+    const logCall = mockLogger.error.mock.calls[0][0]
     expect(logCall).toContain('Something bad happened')
     expect(logCall).toContain('req-123')
 

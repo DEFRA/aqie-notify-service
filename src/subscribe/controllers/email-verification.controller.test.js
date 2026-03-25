@@ -15,6 +15,19 @@ vi.mock('crypto', () => ({
 export const mockStoreVerificationDetails = vi.fn()
 export const mockSendEmail = vi.fn()
 
+// Mock logger
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn()
+  }
+}))
+
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: vi.fn(() => mockLogger)
+}))
+
 // Mock email-verification service
 vi.mock('../services/email-verification.service.js', () => ({
   createEmailVerificationService: vi.fn(() => ({
@@ -40,20 +53,8 @@ vi.mock('../../config.js', () => ({
 }))
 
 // ------------------------------------------------------------
-// Import SUT AFTER mocks
-// ------------------------------------------------------------
-
-// ------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------
-function makeLogger() {
-  return {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn()
-  }
-}
-
 function makeH() {
   return {
     response: (payload) => ({
@@ -84,7 +85,6 @@ function makeBaseRequest(overrides = {}) {
       long: -0.141,
       ...overrides.payload
     },
-    logger: overrides.logger || makeLogger(),
     db: overrides.db || {}
   }
 }
@@ -128,7 +128,7 @@ describe('generateLinkHandler', () => {
     expect(mockStoreVerificationDetails).toHaveBeenCalled()
 
     // Logs
-    const logs = request.logger.info.mock.calls.map((c) => c[0])
+    const logs = mockLogger.info.mock.calls.map((c) => c[0])
 
     expect(logs.some((l) => l.includes('email.generate_link.start'))).toBe(true)
     expect(logs.some((l) => l.includes('email.generate_link.stored'))).toBe(
@@ -165,7 +165,7 @@ describe('generateLinkHandler', () => {
 
     expect(res.statusCode).toBe(201)
 
-    const errorLogs = request.logger.error.mock.calls.map((c) => c[0])
+    const errorLogs = mockLogger.error.mock.calls.map((c) => c[0])
 
     const entry = errorLogs.find((l) =>
       l.includes('email.generate_link.notification_failed')
@@ -192,7 +192,7 @@ describe('generateLinkHandler', () => {
     expect(res.isBoom).toBe(true)
     expect(res.output.statusCode).toBe(500)
 
-    const errorLogs = request.logger.error.mock.calls.map((c) => c[0])
+    const errorLogs = mockLogger.error.mock.calls.map((c) => c[0])
     const unexpected = errorLogs.find((l) =>
       l.includes('email.generate_link.unexpected_error')
     )
@@ -229,14 +229,14 @@ describe('generateLinkHandler', () => {
 
     // Flatten all info logger calls into searchable strings
     // Controller logs with single string argument: logger.info('event {...}')
-    const infoLogs = request.logger.info.mock.calls.map((c) =>
+    const infoLogs = mockLogger.info.mock.calls.map((c) =>
       typeof c[1] === 'object'
         ? `${c[0]} ${JSON.stringify(c[1])}`
         : String(c[0])
     )
 
     // Flatten all error logger calls into searchable strings
-    const errorLogs = request.logger.error.mock.calls.map((c) =>
+    const errorLogs = mockLogger.error.mock.calls.map((c) =>
       typeof c[1] === 'object'
         ? `${c[0]} ${JSON.stringify(c[1])}`
         : String(c[0])
@@ -266,7 +266,7 @@ describe('generateLinkHandler', () => {
     expect(unexpectedError).toContain('"requestId":"INFO-DEFAULT"')
 
     // Assert: at least one error was logged
-    expect(request.logger.error.mock.calls.length).toBeGreaterThan(0)
+    expect(mockLogger.error.mock.calls.length).toBeGreaterThan(0)
   })
   it('first log with email undefined → hits OUTER catch, logs "undefined"', async () => {
     const request = makeBaseRequest({
@@ -292,14 +292,14 @@ describe('generateLinkHandler', () => {
 
     // Flatten all info logger calls into searchable strings
     // Controller logs with single string argument: logger.info('event {...}')
-    const infoLogs = request.logger.info.mock.calls.map((c) =>
+    const infoLogs = mockLogger.info.mock.calls.map((c) =>
       typeof c[1] === 'object'
         ? `${c[0]} ${JSON.stringify(c[1])}`
         : String(c[0])
     )
 
     // Flatten all error logger calls into searchable strings
-    const errorLogs = request.logger.error.mock.calls.map((c) =>
+    const errorLogs = mockLogger.error.mock.calls.map((c) =>
       typeof c[1] === 'object'
         ? `${c[0]} ${JSON.stringify(c[1])}`
         : String(c[0])
@@ -329,6 +329,6 @@ describe('generateLinkHandler', () => {
     expect(unexpectedError).toContain('"requestId":"INFO-DEFAULT"')
 
     // Assert: at least one error was logged
-    expect(request.logger.error.mock.calls.length).toBeGreaterThan(0)
+    expect(mockLogger.error.mock.calls.length).toBeGreaterThan(0)
   })
 })

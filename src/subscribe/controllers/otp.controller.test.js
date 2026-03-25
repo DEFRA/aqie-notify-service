@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { generateOtpHandler, validateOtpHandler } from './otp.controller.js'
 import { createOtpService } from '../services/otp.service.js'
 import { createNotificationService } from '../services/notify-service.js'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { generateOtpHandler, validateOtpHandler } from './otp.controller.js'
 
 const mockOtpService = {
   generate: vi.fn(),
@@ -11,6 +11,20 @@ const mockOtpService = {
 const mockNotificationService = {
   sendSms: vi.fn()
 }
+
+// Mock logger
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
+  }
+}))
+
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: vi.fn(() => mockLogger)
+}))
 
 vi.mock('../services/otp.service.js', () => ({
   createOtpService: vi.fn(() => mockOtpService)
@@ -37,14 +51,6 @@ describe('OTP Controller', () => {
     code: vi.fn().mockReturnThis()
   }
 
-  // Mock logger
-  const mockLogger = {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn()
-  }
-
   // Mock database
   const mockDb = {}
 
@@ -57,8 +63,7 @@ describe('OTP Controller', () => {
       payload: { phoneNumber: '07123456789' },
       headers: { 'x-cdp-request-id': 'test-request-id' },
       info: { id: 'test-request-id' },
-      logger: mockLogger,
-      db: mockDb // 👈 Controller needs db
+      db: mockDb
     }
 
     it('should be defined and have correct structure', () => {
@@ -173,8 +178,7 @@ describe('OTP Controller', () => {
       },
       headers: { 'x-cdp-request-id': 'test-request-id' },
       info: { id: 'test-request-id' },
-      logger: mockLogger,
-      db: mockDb // Controller needs db
+      db: mockDb
     }
 
     it('should be defined and have correct structure', () => {

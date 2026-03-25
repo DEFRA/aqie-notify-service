@@ -13,6 +13,17 @@ const mockMaskPhoneNumber = vi.fn((phone) =>
 )
 const mockMaskEmail = vi.fn((email) => (email ? `us***@example.com` : null))
 
+const mockLogger = {
+  info: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  debug: vi.fn()
+}
+
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: vi.fn(() => mockLogger)
+}))
+
 vi.mock('../services/notify-service.js', () => ({
   createNotificationService: mockCreateNotificationService
 }))
@@ -30,15 +41,6 @@ const { sendNotificationHandler } = await import('./notification.controller.js')
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function createMockLogger() {
-  return {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn()
-  }
-}
-
 function makeRequest({
   phoneNumber = undefined,
   emailAddress = undefined,
@@ -53,8 +55,7 @@ function makeRequest({
       'user-agent': 'VitestAgent/1.0'
     },
     info: { id: infoId },
-    payload: { phoneNumber, emailAddress, templateId, personalisation },
-    logger: createMockLogger()
+    payload: { phoneNumber, emailAddress, templateId, personalisation }
   }
 }
 
@@ -113,7 +114,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       expect(infoLogs.some((l) => l.includes('HEADER-REQUEST-ID'))).toBe(true)
     })
 
@@ -128,7 +129,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       expect(infoLogs.some((l) => l.includes('INFO-FALLBACK-ID'))).toBe(true)
     })
 
@@ -143,7 +144,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       expect(infoLogs.some((l) => l.includes('req_test_op_id'))).toBe(true)
     })
   })
@@ -185,7 +186,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
 
       const requestedLog = infoLogs.find((l) =>
         l.includes('notification.send.requested')
@@ -211,7 +212,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       const requestedLog = infoLogs.find((l) =>
         l.includes('notification.send.requested')
       )
@@ -257,7 +258,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       const successLog = infoLogs.find((l) =>
         l.includes('notification.send.success')
       )
@@ -276,7 +277,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       const requestedLog = infoLogs.find((l) =>
         l.includes('notification.send.requested')
       )
@@ -294,7 +295,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       const requestedLog = infoLogs.find((l) =>
         l.includes('notification.send.requested')
       )
@@ -330,7 +331,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const errorLogs = flattenLogCalls(request.logger.error)
+      const errorLogs = flattenLogCalls(mockLogger.error)
       const failedLog = errorLogs.find((l) =>
         l.includes('notification.send.failed')
       )
@@ -350,7 +351,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const errorLogs = flattenLogCalls(request.logger.error)
+      const errorLogs = flattenLogCalls(mockLogger.error)
       const failedLog = errorLogs.find((l) =>
         l.includes('notification.send.failed')
       )
@@ -386,7 +387,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const errorLogs = flattenLogCalls(request.logger.error)
+      const errorLogs = flattenLogCalls(mockLogger.error)
       const failedLog = errorLogs.find((l) =>
         l.includes('notification.send.failed')
       )
@@ -410,7 +411,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       const requestedIndex = infoLogs.findIndex((l) =>
         l.includes('notification.send.requested')
       )
@@ -432,8 +433,8 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
-      const errorLogs = flattenLogCalls(request.logger.error)
+      const infoLogs = flattenLogCalls(mockLogger.info)
+      const errorLogs = flattenLogCalls(mockLogger.error)
 
       expect(
         infoLogs.find((l) => l.includes('notification.send.requested'))
@@ -453,7 +454,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      expect(request.logger.error.mock.calls.length).toBe(0)
+      expect(mockLogger.error.mock.calls.length).toBe(0)
     })
 
     it('should NOT log success on the failure path', async () => {
@@ -466,7 +467,7 @@ describe('sendNotificationHandler', () => {
 
       await sendNotificationHandler(request, h)
 
-      const infoLogs = flattenLogCalls(request.logger.info)
+      const infoLogs = flattenLogCalls(mockLogger.info)
       expect(
         infoLogs.find((l) => l.includes('notification.send.success'))
       ).toBeUndefined()
