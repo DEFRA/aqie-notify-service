@@ -57,6 +57,52 @@ describe('smsReplyCron plugin', () => {
     setIntervalSpy.mockRestore()
   })
 
+  it('should execute poll job successfully when setInterval fires', async () => {
+    config.get.mockImplementation((key) => {
+      if (key === 'notify.smsReplyPollEnabled') return true
+      if (key === 'notify.smsReplyPollIntervalMinutes') return 1
+      return undefined
+    })
+    let intervalCallback
+    const setIntervalSpy = vi
+      .spyOn(global, 'setInterval')
+      .mockImplementation((fn) => {
+        intervalCallback = fn
+        return 99999
+      })
+
+    await smsReplyCron.plugin.register(server, {})
+    await intervalCallback()
+
+    setIntervalSpy.mockRestore()
+  })
+
+  it('should catch and log errors when poll job fails', async () => {
+    const { createSmsReplyService } = await import(
+      '../subscribe/services/sms-reply.service.js'
+    )
+    config.get.mockImplementation((key) => {
+      if (key === 'notify.smsReplyPollEnabled') return true
+      if (key === 'notify.smsReplyPollIntervalMinutes') return 1
+      return undefined
+    })
+    createSmsReplyService.mockReturnValue({
+      pollAndProcessReplies: vi.fn().mockRejectedValue(new Error('Poll failed'))
+    })
+    let intervalCallback
+    const setIntervalSpy = vi
+      .spyOn(global, 'setInterval')
+      .mockImplementation((fn) => {
+        intervalCallback = fn
+        return 99999
+      })
+
+    await smsReplyCron.plugin.register(server, {})
+    await intervalCallback()
+
+    setIntervalSpy.mockRestore()
+  })
+
   it('should clear interval on server stop', async () => {
     config.get.mockImplementation((key) => {
       if (key === 'notify.smsReplyPollEnabled') return true

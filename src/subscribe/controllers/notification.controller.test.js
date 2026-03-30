@@ -4,6 +4,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockSend = vi.fn()
 const mockCreateNotificationService = vi.fn(() => ({ send: mockSend }))
+const mockStoreNotificationDetail = vi.fn()
+const mockCreateUserNotificationDetailService = vi.fn(() => ({
+  storeNotificationDetail: mockStoreNotificationDetail
+}))
 const mockMaskTemplateId = vi.fn((id) =>
   id ? `***${String(id).slice(-4)}` : 'null'
 )
@@ -28,6 +32,10 @@ vi.mock('../services/notify-service.js', () => ({
   createNotificationService: mockCreateNotificationService
 }))
 
+vi.mock('../services/user-notification-detail.service.js', () => ({
+  createUserNotificationDetailService: mockCreateUserNotificationDetailService
+}))
+
 vi.mock('../../common/helpers/masking-utils.js', () => ({
   maskTemplateId: mockMaskTemplateId,
   generateOperationId: mockGenerateOperationId,
@@ -46,6 +54,7 @@ function makeRequest({
   emailAddress = undefined,
   templateId = 'template-uuid-1234',
   personalisation = { name: 'Test User' },
+  alertId = 'alert-123',
   requestId = undefined,
   infoId = undefined
 } = {}) {
@@ -55,7 +64,14 @@ function makeRequest({
       'user-agent': 'VitestAgent/1.0'
     },
     info: { id: infoId },
-    payload: { phoneNumber, emailAddress, templateId, personalisation }
+    payload: {
+      phoneNumber,
+      emailAddress,
+      templateId,
+      personalisation,
+      alertId
+    },
+    db: { collection: vi.fn() }
   }
 }
 
@@ -86,6 +102,10 @@ describe('sendNotificationHandler', () => {
 
     // Re-attach mock implementations after clearAllMocks
     mockCreateNotificationService.mockImplementation(() => ({ send: mockSend }))
+    mockCreateUserNotificationDetailService.mockImplementation(() => ({
+      storeNotificationDetail: mockStoreNotificationDetail
+    }))
+    mockStoreNotificationDetail.mockResolvedValue({ success: true })
     mockMaskTemplateId.mockImplementation((id) =>
       id ? `***${String(id).slice(-4)}` : 'null'
     )
@@ -471,6 +491,63 @@ describe('sendNotificationHandler', () => {
       expect(
         infoLogs.find((l) => l.includes('notification.send.success'))
       ).toBeUndefined()
+    })
+  })
+
+  // ─── Notification Detail Storage ──────────────────────────────────────────
+
+  describe('Notification detail storage', () => {
+    it('should store notification detail with correct fields after successful SMS send', async () => {
+      const request = makeRequest({
+        phoneNumber: '+447123456789',
+        alertId: 'alert-sms-001',
+        requestId: 'STORE-SMS-ID'
+      })
+      const h = makeH()
+      mockSend.mockResolvedValueOnce({ notificationId: 'sms-notif-store' })
+
+      await sendNotificationHandler(request, h)
+
+      expect(mockCreateUserNotificationDetailService).toHaveBeenCalledWith(
+        request.db,
+        expect.anything()
+      )
+      expect(mockStoreNotificationDetail).toHaveBeenCalledWith({
+        notificationId: 'sms-notif-store',
+        alertId: 'alert-sms-001',
+        notifyStatus: 'submitted'
+      })
+    })
+
+    it('should store notification detail with email as userContact after successful email send', async () => {
+      const request = makeRequest({
+        emailAddress: 'user@example.com',
+        alertId: 'alert-email-001',
+        requestId: 'STORE-EMAIL-ID'
+      })
+      const h = makeH()
+      mockSend.mockResolvedValueOnce({ notificationId: 'email-notif-store' })
+
+      await sendNotificationHandler(request, h)
+
+      expect(mockStoreNotificationDetail).toHaveBeenCalledWith({
+        notificationId: 'email-notif-store',
+        alertId: 'alert-email-001',
+        notifyStatus: 'submitted'
+      })
+    })
+
+    it('should NOT store notification detail when send fails', async () => {
+      const request = makeRequest({
+        emailAddress: 'user@example.com',
+        requestId: 'STORE-FAIL-ID'
+      })
+      const h = makeH()
+      mockSend.mockRejectedValueOnce(new Error('send failed'))
+
+      await sendNotificationHandler(request, h)
+
+      expect(mockStoreNotificationDetail).not.toHaveBeenCalled()
     })
   })
 

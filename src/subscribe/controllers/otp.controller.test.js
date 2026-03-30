@@ -141,6 +141,51 @@ describe('OTP Controller', () => {
       })
     })
 
+    describe('Request ID fallback', () => {
+      it('should generate a request ID when x-cdp-request-id and info.id are missing', async () => {
+        const noIdRequest = {
+          payload: { phoneNumber: '07123456789' },
+          headers: {},
+          info: {},
+          db: mockDb
+        }
+        mockOtpService.generate.mockResolvedValue({
+          normalizedPhoneNumber: '+447123456789',
+          otp: '12345'
+        })
+        mockNotificationService.sendSms.mockResolvedValue({
+          notificationId: 'notification-fallback'
+        })
+        mockH.response.mockReturnValue(mockH)
+        mockH.code.mockReturnValue({
+          notificationId: 'notification-fallback',
+          status: 'submitted'
+        })
+
+        await generateOtpHandler(noIdRequest, mockH)
+
+        const logCall = mockLogger.info.mock.calls[0][0]
+        expect(logCall).toContain('req_')
+      })
+    })
+
+    describe('Payload edge cases', () => {
+      it('should log undefined when phoneNumber is missing from generate payload', async () => {
+        const noPhoneRequest = {
+          payload: {},
+          headers: { 'x-cdp-request-id': 'test-id' },
+          info: { id: 'info-id' },
+          db: mockDb
+        }
+        mockOtpService.generate.mockRejectedValue(new Error('no phone'))
+
+        await generateOtpHandler(noPhoneRequest, mockH)
+
+        const logCall = mockLogger.info.mock.calls[0][0]
+        expect(logCall).toContain('undefined')
+      })
+    })
+
     describe('Error scenarios', () => {
       it('should handle service error response', async () => {
         mockOtpService.generate.mockResolvedValue({
@@ -212,6 +257,25 @@ describe('OTP Controller', () => {
           message: 'Phone number has been validated successfully'
         })
         expect(mockH.code).toHaveBeenCalledWith(200)
+      })
+    })
+
+    describe('Payload edge cases', () => {
+      it('should log undefined when phoneNumber is missing from validate payload', async () => {
+        const noPhoneRequest = {
+          payload: { otp: '12345' },
+          headers: { 'x-cdp-request-id': 'test-id' },
+          info: { id: 'info-id' },
+          db: mockDb
+        }
+        mockOtpService.validate.mockRejectedValue(new Error('no phone'))
+
+        await validateOtpHandler(noPhoneRequest, mockH)
+
+        const logCall = mockLogger.info.mock.calls.find((c) =>
+          c[0].includes('otp.validate.requested')
+        )
+        expect(logCall[0]).toContain('undefined')
       })
     })
 

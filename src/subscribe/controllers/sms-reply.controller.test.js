@@ -89,6 +89,28 @@ describe('processSmsRepliesHandler', () => {
   // ────────────────────────────────────────────────
   // ERROR CASE
   // ────────────────────────────────────────────────
+  it('should use request.info.id as fallback when x-cdp-request-id is missing in error log', async () => {
+    const requestNoHeader = {
+      db: {},
+      headers: {
+        'user-agent': 'vitest-agent'
+      },
+      info: {
+        id: 'fallback-info-id',
+        remoteAddress: '127.0.0.1'
+      }
+    }
+    pollAndProcessRepliesMock.mockRejectedValue(
+      new Error('Fallback test error')
+    )
+
+    const result = await processSmsRepliesHandler(requestNoHeader, h)
+
+    const logCall = mockLogger.error.mock.calls[0][0]
+    expect(logCall).toContain('fallback-info-id')
+    expect(result.isBoom).toBe(true)
+  })
+
   it('logs error and returns Boom.internal when service throws', async () => {
     pollAndProcessRepliesMock.mockRejectedValue(
       new Error('Something bad happened')

@@ -65,6 +65,80 @@ describe('Email Verification Service', () => {
         'user-email-verification-details'
       )
     })
+
+    it('should use default logger when none provided', async () => {
+      setupLoggerMock(mockLogger)
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      const mockDb = createMockDb(mockCollection)
+
+      const service = new EmailVerificationService(mockDb)
+
+      expect(service.logger).toBeDefined()
+    })
+  })
+
+  describe('ensureIndexes method', () => {
+    it('should create indexes successfully', async () => {
+      setupLoggerMock(mockLogger)
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      mockCollection.createIndex.mockResolvedValue()
+      const mockDb = createMockDb(mockCollection)
+
+      const service = new EmailVerificationService(mockDb, mockLogger)
+      await service.ensureIndexes()
+
+      expect(mockCollection.createIndex).toHaveBeenCalledTimes(2)
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'email_verification.indexes.created'
+      )
+    })
+
+    it('should log warning when index creation fails', async () => {
+      setupLoggerMock(mockLogger)
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      mockCollection.createIndex.mockRejectedValue(new Error('Index error'))
+      const mockDb = createMockDb(mockCollection)
+
+      const service = new EmailVerificationService(mockDb, mockLogger)
+      await service.ensureIndexes()
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('email_verification.indexes.error')
+      )
+    })
+  })
+
+  describe('normalizeEmail method', () => {
+    it('should normalize email to lowercase and trim whitespace', async () => {
+      setupLoggerMock(mockLogger)
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      const mockDb = createMockDb(mockCollection)
+      const service = new EmailVerificationService(mockDb, mockLogger)
+
+      expect(service.normalizeEmail('  User@Example.COM  ')).toBe(
+        'user@example.com'
+      )
+    })
   })
 
   describe('storeVerificationDetails method', () => {
@@ -125,6 +199,100 @@ describe('Email Verification Service', () => {
       expect(result.uuid).toBe('123e4567-e89b-12d3-a456-426614174000')
       expect(result.verificationLink).toContain(
         '123e4567-e89b-12d3-a456-426614174000'
+      )
+    }, 10000)
+
+    it('should throw and log error when replaceOne fails', async () => {
+      setupLoggerMock(mockLogger)
+
+      vi.doMock('uuid', () => ({
+        v4: vi.fn(() => '123e4567-e89b-12d3-a456-426614174000')
+      }))
+
+      vi.doMock('../../config.js', () => ({
+        config: {
+          get: vi.fn(() => 'https://example.com/')
+        }
+      }))
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      mockCollection.createIndex.mockResolvedValue()
+      mockCollection.replaceOne.mockRejectedValue(
+        new Error('Duplicate key error')
+      )
+
+      const mockDb = createMockDb(mockCollection)
+      const service = new EmailVerificationService(mockDb, mockLogger)
+
+      await expect(
+        service.storeVerificationDetails(
+          'user@example.com',
+          'email',
+          'staines',
+          0.789,
+          -0.876,
+          15
+        )
+      ).rejects.toThrow(
+        'Failed to store email verification: Duplicate key error'
+      )
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('email_verification.store.error')
+      )
+    }, 10000)
+  })
+
+  describe('getVerificationByUuid method', () => {
+    it('should return verification record by uuid', async () => {
+      setupLoggerMock(mockLogger)
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      const mockRecord = {
+        secret: '123e4567-e89b-12d3-a456-426614174000',
+        contact: 'user@example.com'
+      }
+      mockCollection.findOne.mockResolvedValue(mockRecord)
+      const mockDb = createMockDb(mockCollection)
+
+      const service = new EmailVerificationService(mockDb, mockLogger)
+      const result = await service.getVerificationByUuid(
+        '123e4567-e89b-12d3-a456-426614174000'
+      )
+
+      expect(result).toEqual(mockRecord)
+      expect(mockCollection.findOne).toHaveBeenCalledWith({
+        secret: '123e4567-e89b-12d3-a456-426614174000'
+      })
+    }, 10000)
+
+    it('should throw and log error when findOne fails', async () => {
+      setupLoggerMock(mockLogger)
+
+      const { EmailVerificationService } = await import(
+        './email-verification.service.js'
+      )
+
+      const mockCollection = createMockCollection()
+      mockCollection.findOne.mockRejectedValue(new Error('DB read error'))
+      const mockDb = createMockDb(mockCollection)
+
+      const service = new EmailVerificationService(mockDb, mockLogger)
+
+      await expect(
+        service.getVerificationByUuid('123e4567-e89b-12d3-a456-426614174000')
+      ).rejects.toThrow('Failed to get verification: DB read error')
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('email_verification.get.error')
       )
     }, 10000)
   })
@@ -305,7 +473,7 @@ describe('Email Verification Service', () => {
     }, 10000)
   })
 
-  describe.skip('Factory Function', () => {
+  describe('Factory Function', () => {
     it('should create service instance via factory', async () => {
       setupLoggerMock(mockLogger)
 
@@ -315,7 +483,7 @@ describe('Email Verification Service', () => {
       const mockCollection = createMockCollection()
       mockCollection.createIndex.mockResolvedValue()
       const mockDb = createMockDb(mockCollection)
-      const service = createEmailVerificationService(mockDb, mockLogger)
+      const service = await createEmailVerificationService(mockDb, mockLogger)
 
       expect(service).toBeInstanceOf(EmailVerificationService)
       expect(typeof createEmailVerificationService).toBe('function')

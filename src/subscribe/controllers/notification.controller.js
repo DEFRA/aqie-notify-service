@@ -7,6 +7,7 @@ import {
   maskEmail
 } from '../../common/helpers/masking-utils.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
+import { createUserNotificationDetailService } from '../services/user-notification-detail.service.js'
 
 const logger = createLogger()
 const HTTP_STATUS_CREATED = 201
@@ -16,7 +17,7 @@ export async function sendNotificationHandler(request, h) {
     request.headers['x-cdp-request-id'] ||
     request.info.id ||
     generateOperationId('req')
-  const { phoneNumber, emailAddress, templateId, personalisation } =
+  const { phoneNumber, emailAddress, templateId, personalisation, alertId } =
     request.payload
 
   logger.info(
@@ -36,6 +37,16 @@ export async function sendNotificationHandler(request, h) {
     logger.info(
       `notification.send.success ${JSON.stringify({ requestId, notificationId: response.notificationId, contactType: phoneNumber ? 'sms' : 'email' })}`
     )
+
+    const userNotificationDetailService = createUserNotificationDetailService(
+      request.db,
+      logger
+    )
+    await userNotificationDetailService.storeNotificationDetail({
+      notificationId: response.notificationId,
+      alertId,
+      notifyStatus: 'submitted'
+    })
 
     return h
       .response({

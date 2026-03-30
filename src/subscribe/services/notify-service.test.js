@@ -49,6 +49,7 @@ function maskMsisdn(msisdn) {
 function createMockSetup() {
   const mockNotifyClient = {
     sendSms: vi.fn(),
+    sendEmail: vi.fn(),
     getNotificationById: vi.fn()
   }
 
@@ -459,6 +460,25 @@ describe('Notify Service', () => {
         })
       }, 10000)
 
+      it('should handle null personalisation in SMS', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService } = await import('./notify-service.js')
+
+        mockNotifyClient.sendSms.mockResolvedValue({
+          data: { id: 'sms-null-pers', uri: 'https://example.com' }
+        })
+
+        const service = new NotifyService()
+        const result = await service.sendSmsGeneric(
+          'template-456',
+          '+447123456789',
+          null
+        )
+
+        expect(result.notificationId).toBe('sms-null-pers')
+      }, 10000)
+
       it('should handle missing notification ID', async () => {
         setupMocks(mockNotifyClient, mockConfig, mockLogger)
 
@@ -530,6 +550,369 @@ describe('Notify Service', () => {
         const logCall = mockLogger.error.mock.calls[0][0]
         expect(logCall).toContain('Network timeout')
         expect(logCall).toContain('xxxxxxxxxx789')
+      }, 10000)
+    })
+
+    describe('sendSmsGeneric - missing parameters', () => {
+      it('should throw when templateId is missing', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+        const service = new NotifyService()
+
+        await expect(
+          service.sendSmsGeneric(null, '+447123456789', { code: '123' })
+        ).rejects.toThrow(NotifySmsError)
+
+        expect(mockLogger.error).toHaveBeenCalledWith(
+          expect.stringContaining('notify.send_sms.missing_parameters')
+        )
+      }, 10000)
+
+      it('should throw when phoneNumber is missing', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+        const service = new NotifyService()
+
+        await expect(
+          service.sendSmsGeneric('template-456', null, { code: '123' })
+        ).rejects.toThrow(NotifySmsError)
+      }, 10000)
+    })
+
+    describe('sendEmailGeneric Method', () => {
+      it('should send email successfully', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService } = await import('./notify-service.js')
+
+        mockNotifyClient.sendEmail.mockResolvedValue({
+          data: {
+            id: 'email-notif-123',
+            uri: 'https://api.notifications.service.gov.uk/v2/notifications/email-notif-123'
+          }
+        })
+
+        const service = new NotifyService()
+        const result = await service.sendEmailGeneric(
+          'template-456',
+          'user@example.com',
+          { name: 'Test' }
+        )
+
+        expect(mockNotifyClient.sendEmail).toHaveBeenCalledWith(
+          'template-456',
+          'user@example.com',
+          { personalisation: { name: 'Test' } }
+        )
+        expect(result).toEqual({
+          notificationId: 'email-notif-123',
+          notificationStatus:
+            'https://api.notifications.service.gov.uk/v2/notifications/email-notif-123'
+        })
+      }, 10000)
+
+      it('should throw when templateId is missing', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+        const service = new NotifyService()
+
+        await expect(
+          service.sendEmailGeneric(null, 'user@example.com', { name: 'Test' })
+        ).rejects.toThrow(NotifySmsError)
+      }, 10000)
+
+      it('should throw when emailAddress is missing', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+        const service = new NotifyService()
+
+        await expect(
+          service.sendEmailGeneric('template-456', null, { name: 'Test' })
+        ).rejects.toThrow(NotifySmsError)
+      }, 10000)
+
+      it('should handle missing notification ID in email response', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+
+        mockNotifyClient.sendEmail.mockResolvedValue({
+          data: {}
+        })
+
+        const service = new NotifyService()
+
+        await expect(
+          service.sendEmailGeneric('template-456', 'user@example.com', {
+            name: 'Test'
+          })
+        ).rejects.toThrow(NotifySmsError)
+      }, 10000)
+
+      it('should handle null personalisation in email', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService } = await import('./notify-service.js')
+
+        mockNotifyClient.sendEmail.mockResolvedValue({
+          data: { id: 'email-null-pers', uri: 'https://example.com' }
+        })
+
+        const service = new NotifyService()
+        const result = await service.sendEmailGeneric(
+          'template-456',
+          'user@example.com',
+          null
+        )
+
+        expect(result.notificationId).toBe('email-null-pers')
+      }, 10000)
+
+      it('should handle undefined response data in email', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+
+        mockNotifyClient.sendEmail.mockResolvedValue({})
+
+        const service = new NotifyService()
+
+        await expect(
+          service.sendEmailGeneric('template-456', 'user@example.com', {
+            name: 'Test'
+          })
+        ).rejects.toThrow(NotifySmsError)
+      }, 10000)
+
+      it('should handle API errors when sending email', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+        const { NotifyService, NotifySmsError } = await import(
+          './notify-service.js'
+        )
+
+        const apiError = new Error('Email send failed')
+        apiError.response = {
+          status: 500,
+          data: {
+            status_code: 500,
+            errors: [{ error: 'InternalServerError' }]
+          }
+        }
+        mockNotifyClient.sendEmail.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+
+        await expect(
+          service.sendEmailGeneric('template-456', 'user@example.com', {
+            name: 'Test'
+          })
+        ).rejects.toThrow(NotifySmsError)
+      }, 10000)
+    })
+
+    describe('sendSmsGeneric - error categories through actual module', () => {
+      it('should categorize 401 error as unauthorized', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Unauthorized')
+        apiError.response = {
+          status: 401,
+          data: { status_code: 401, errors: [{ error: 'AuthError' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.category).toBe('unauthorized')
+          expect(e.retriable).toBe(false)
+        }
+      }, 10000)
+
+      it('should categorize 403 error as forbidden', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Forbidden')
+        apiError.response = {
+          status: 403,
+          data: { status_code: 403, errors: [{ error: 'ForbiddenError' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.category).toBe('forbidden')
+        }
+      }, 10000)
+
+      it('should categorize RateLimitError as retriable', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Rate limited')
+        apiError.response = {
+          status: 429,
+          data: { status_code: 429, errors: [{ error: 'RateLimitError' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.category).toBe('rate_limit')
+          expect(e.retriable).toBe(true)
+        }
+      }, 10000)
+
+      it('should categorize TooManyRequestsError as daily_limit', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Too many')
+        apiError.response = {
+          data: { errors: [{ error: 'TooManyRequestsError' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.category).toBe('daily_limit')
+          expect(e.retriable).toBe(true)
+        }
+      }, 10000)
+
+      it('should categorize 400 BadRequestError as bad_request', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Bad request')
+        apiError.response = {
+          status: 400,
+          data: { status_code: 400, errors: [{ error: 'BadRequestError' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.category).toBe('bad_request')
+          expect(e.retriable).toBe(false)
+        }
+      }, 10000)
+
+      it('should categorize 500 error as server_error and retriable', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Server error')
+        apiError.response = {
+          status: 500,
+          data: { status_code: 500, errors: [{ error: 'InternalServerError' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.category).toBe('server_error')
+          expect(e.retriable).toBe(true)
+        }
+      }, 10000)
+
+      it('should handle error with code instead of error field', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('Validation')
+        apiError.response = {
+          status: 400,
+          data: { status_code: 400, errors: [{ code: 'ValidationFailed' }] }
+        }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.meta.details[0].error).toBe('ValidationFailed')
+        }
+      }, 10000)
+
+      it('should use response.status when status_code is absent', async () => {
+        setupMocks(mockNotifyClient, mockConfig, mockLogger)
+        const { NotifyService } = await import('./notify-service.js')
+
+        const apiError = new Error('No status_code')
+        apiError.response = { status: 503, data: { errors: [] } }
+        mockNotifyClient.sendSms.mockRejectedValue(apiError)
+
+        const service = new NotifyService()
+        try {
+          await service.sendSmsGeneric('t', '+447123456789', { code: '1' })
+        } catch (e) {
+          expect(e.statusCode).toBe(503)
+          expect(e.category).toBe('server_error')
+        }
+      }, 10000)
+    })
+
+    describe('sendEmailGeneric - missing apiKey branch', () => {
+      it('should log apiKey as missing when config returns falsy', async () => {
+        const missingKeyConfig = {
+          get: vi.fn((key) => {
+            if (key === 'notify.apiKey') return ''
+            return 'value'
+          })
+        }
+        vi.doMock('notifications-node-client', () => ({
+          NotifyClient: vi.fn(() => mockNotifyClient)
+        }))
+        vi.doMock('../../config.js', () => ({ config: missingKeyConfig }))
+        vi.doMock('../../common/helpers/logging/logger.js', () => ({
+          createLogger: vi.fn(() => mockLogger)
+        }))
+
+        const { NotifyService } = await import('./notify-service.js')
+
+        mockNotifyClient.sendEmail.mockResolvedValue({
+          data: { id: 'email-no-key', uri: 'https://example.com' }
+        })
+
+        const service = new NotifyService()
+        const result = await service.sendEmailGeneric(
+          'template-456',
+          'user@example.com',
+          { name: 'Test' }
+        )
+
+        expect(result.notificationId).toBe('email-no-key')
       }, 10000)
     })
 
@@ -641,6 +1024,97 @@ describe('Notify Service', () => {
       expect(typeof service.sendSms).toBe('function')
       expect(typeof service.sendEmail).toBe('function')
       expect(typeof service.send).toBe('function')
+    }, 10000)
+  })
+
+  describe('Wrapper Functions (sendSms, sendEmail, send)', () => {
+    let mockNotifyClient
+    let mockConfig
+    let mockLogger
+
+    beforeEach(() => {
+      const mocks = createMockSetup()
+      mockNotifyClient = mocks.mockNotifyClient
+      mockConfig = mocks.mockConfig
+      mockLogger = mocks.mockLogger
+      vi.clearAllMocks()
+      vi.resetModules()
+    })
+
+    it('sendSms should delegate to sendSmsGeneric via singleton', async () => {
+      setupMocks(mockNotifyClient, mockConfig, mockLogger)
+      mockNotifyClient.sendSms.mockResolvedValue({
+        data: { id: 'sms-wrapper-123', uri: 'https://example.com' }
+      })
+
+      const { createNotificationService } = await import('./notify-service.js')
+      const service = createNotificationService()
+      const result = await service.sendSms('+447123456789', 'template-456', {
+        code: '12345'
+      })
+
+      expect(result.notificationId).toBe('sms-wrapper-123')
+    }, 10000)
+
+    it('sendEmail should delegate to sendEmailGeneric via singleton', async () => {
+      setupMocks(mockNotifyClient, mockConfig, mockLogger)
+      mockNotifyClient.sendEmail.mockResolvedValue({
+        data: { id: 'email-wrapper-123', uri: 'https://example.com' }
+      })
+
+      const { createNotificationService } = await import('./notify-service.js')
+      const service = createNotificationService()
+      const result = await service.sendEmail(
+        'user@example.com',
+        'template-456',
+        { name: 'Test' }
+      )
+
+      expect(result.notificationId).toBe('email-wrapper-123')
+    }, 10000)
+
+    it('send should route to sendSms when phoneNumber is provided', async () => {
+      setupMocks(mockNotifyClient, mockConfig, mockLogger)
+      mockNotifyClient.sendSms.mockResolvedValue({
+        data: { id: 'send-sms-123', uri: 'https://example.com' }
+      })
+
+      const { createNotificationService } = await import('./notify-service.js')
+      const service = createNotificationService()
+      const result = await service.send('+447123456789', null, 'template-456', {
+        code: '12345'
+      })
+
+      expect(result.notificationId).toBe('send-sms-123')
+    }, 10000)
+
+    it('send should route to sendEmail when emailAddress is provided', async () => {
+      setupMocks(mockNotifyClient, mockConfig, mockLogger)
+      mockNotifyClient.sendEmail.mockResolvedValue({
+        data: { id: 'send-email-123', uri: 'https://example.com' }
+      })
+
+      const { createNotificationService } = await import('./notify-service.js')
+      const service = createNotificationService()
+      const result = await service.send(
+        null,
+        'user@example.com',
+        'template-456',
+        { name: 'Test' }
+      )
+
+      expect(result.notificationId).toBe('send-email-123')
+    }, 10000)
+
+    it('send should throw when neither phoneNumber nor emailAddress is provided', async () => {
+      setupMocks(mockNotifyClient, mockConfig, mockLogger)
+
+      const { createNotificationService } = await import('./notify-service.js')
+      const service = createNotificationService()
+
+      await expect(
+        service.send(null, null, 'template-456', { name: 'Test' })
+      ).rejects.toThrow('Either phoneNumber or emailAddress must be provided')
     }, 10000)
   })
 
