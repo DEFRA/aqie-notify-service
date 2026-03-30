@@ -15,8 +15,9 @@ function maskMsisdn(msisdn) {
   }
   const visible = msisdn.slice(SLICING_THREE_DIGITS)
   return (
-    msisdn.slice(0, msisdn.length + SLICING_THREE_DIGITS).replace(/./g, 'x') +
-    visible
+    msisdn
+      .slice(0, msisdn.length + SLICING_THREE_DIGITS)
+      .replaceAll(/./g, 'x') + visible
   )
 }
 

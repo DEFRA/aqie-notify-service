@@ -58,6 +58,14 @@ describe('smsReplyCron plugin', () => {
   })
 
   it('should execute poll job successfully when setInterval fires', async () => {
+    const { createSmsReplyService } = await import(
+      '../subscribe/services/sms-reply.service.js'
+    )
+    const mockPollAndProcessReplies = vi.fn().mockResolvedValue(undefined)
+    createSmsReplyService.mockReturnValue({
+      pollAndProcessReplies: mockPollAndProcessReplies
+    })
+
     config.get.mockImplementation((key) => {
       if (key === 'notify.smsReplyPollEnabled') return true
       if (key === 'notify.smsReplyPollIntervalMinutes') return 1
@@ -73,6 +81,9 @@ describe('smsReplyCron plugin', () => {
 
     await smsReplyCron.plugin.register(server, {})
     await intervalCallback()
+
+    expect(mockPollAndProcessReplies).toHaveBeenCalledTimes(1)
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 60000)
 
     setIntervalSpy.mockRestore()
   })
@@ -81,13 +92,17 @@ describe('smsReplyCron plugin', () => {
     const { createSmsReplyService } = await import(
       '../subscribe/services/sms-reply.service.js'
     )
+    const mockPollAndProcessReplies = vi
+      .fn()
+      .mockRejectedValue(new Error('Poll failed'))
+    createSmsReplyService.mockReturnValue({
+      pollAndProcessReplies: mockPollAndProcessReplies
+    })
+
     config.get.mockImplementation((key) => {
       if (key === 'notify.smsReplyPollEnabled') return true
       if (key === 'notify.smsReplyPollIntervalMinutes') return 1
       return undefined
-    })
-    createSmsReplyService.mockReturnValue({
-      pollAndProcessReplies: vi.fn().mockRejectedValue(new Error('Poll failed'))
     })
     let intervalCallback
     const setIntervalSpy = vi
@@ -99,6 +114,10 @@ describe('smsReplyCron plugin', () => {
 
     await smsReplyCron.plugin.register(server, {})
     await intervalCallback()
+
+    expect(mockPollAndProcessReplies).toHaveBeenCalledTimes(1)
+    expect(intervalCallback).toBeDefined()
+    await expect(intervalCallback()).resolves.not.toThrow()
 
     setIntervalSpy.mockRestore()
   })
