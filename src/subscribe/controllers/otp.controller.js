@@ -29,16 +29,9 @@ async function generateOtpHandler(request, h) {
 
   try {
     const { phoneNumber } = request.payload
-    logger.info(
-      `otp.generate.start ${JSON.stringify({ requestId, phoneNumber: maskPhoneNumber(phoneNumber) })}`
-    )
 
     const otpService = createOtpService(request.db, logger)
     const result = await otpService.generate(phoneNumber)
-
-    logger.info(
-      `otp.generate.service_result ${JSON.stringify({ requestId, phoneNumber: maskPhoneNumber(phoneNumber), success: !result.error, hasNormalizedNumber: !!result.normalizedPhoneNumber })}`
-    )
 
     if (result.error) {
       logger.warn(
@@ -48,16 +41,9 @@ async function generateOtpHandler(request, h) {
     }
 
     const { normalizedPhoneNumber, otp } = result
-    logger.info(
-      `otp.generate.otp_created ${JSON.stringify({ requestId, normalizedPhoneNumber: maskPhoneNumber(normalizedPhoneNumber), otpLength: otp?.length })}`
-    )
 
     // Send notification via service
     try {
-      logger.info(
-        `otp.generate.notification_start ${JSON.stringify({ requestId, normalizedPhoneNumber: maskPhoneNumber(normalizedPhoneNumber), templateId: config.get('notify.templateId') })}`
-      )
-
       const notificationService = createNotificationService()
       const { notificationId } = await notificationService.sendSms(
         normalizedPhoneNumber,
@@ -66,7 +52,7 @@ async function generateOtpHandler(request, h) {
       )
 
       logger.info(
-        `otp.generate.notification_success ${JSON.stringify({ requestId, normalizedPhoneNumber: maskPhoneNumber(normalizedPhoneNumber), notificationId })}`
+        `otp.generate.success ${JSON.stringify({ requestId, normalizedPhoneNumber: maskPhoneNumber(normalizedPhoneNumber), notificationId, status: 'submitted' })}`
       )
 
       return h
@@ -74,7 +60,7 @@ async function generateOtpHandler(request, h) {
         .code(HTTP_STATUS_CREATED)
     } catch (error_) {
       logger.error(
-        `otp.generate.notification_failed ${JSON.stringify({ requestId, normalizedPhoneNumber: maskPhoneNumber(normalizedPhoneNumber), error: error_.message, errorName: error_.name })}`
+        `otp.generate.notification_failed ${JSON.stringify({ requestId, normalizedPhoneNumber: maskPhoneNumber(normalizedPhoneNumber), errorName: error_.name })}`
       )
       return Boom.badGateway('Failed to send OTP notification', {
         status: 'otp_generated_notification_failed',
@@ -99,16 +85,9 @@ async function validateOtpHandler(request, h) {
 
   try {
     const { phoneNumber, otp } = request.payload
-    logger.info(
-      `otp.validate.start ${JSON.stringify({ requestId, phoneNumber: maskPhoneNumber(phoneNumber), otpLength: otp?.length })}`
-    )
 
     const otpService = createOtpService(request.db, logger)
     const result = await otpService.validate(phoneNumber, otp)
-
-    logger.info(
-      `otp.validate.service_result ${JSON.stringify({ requestId, phoneNumber: maskPhoneNumber(phoneNumber), success: !result.error, hasNormalizedNumber: !!result.normalizedPhoneNumber })}`
-    )
 
     if (result.error) {
       logger.warn(

@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto'
-
 /**
  * UK Phone Number Validation Utility
  * Validates UK mobile and landline numbers according to Ofcom numbering plan
@@ -70,30 +68,7 @@ function normalizeUKPhoneNumber(phoneNumber) {
  * @returns {object} - Object containing isValid boolean and normalized number
  */
 function validateAndNormalizeUKPhoneNumber(phoneNumber) {
-  const operationId = `validate_${randomUUID()}`
-
-  // Simple console logging to avoid circular dependencies
-  console.log(`[${new Date().toISOString()}] phone.validate.start`, {
-    operationId,
-    phoneNumber: phoneNumber ? '***' + phoneNumber.slice(-3) : 'undefined',
-    phoneNumberLength: phoneNumber?.length
-  })
-
-  const isValid = isValidUKPhoneNumber(phoneNumber)
-
-  console.log(
-    `[${new Date().toISOString()}] phone.validate.validation_result`,
-    {
-      operationId,
-      isValid
-    }
-  )
-
-  if (!isValid) {
-    console.log(`[${new Date().toISOString()}] phone.validate.invalid_format`, {
-      operationId,
-      phoneNumber: phoneNumber ? '***' + phoneNumber.slice(-3) : 'undefined'
-    })
+  if (!isValidUKPhoneNumber(phoneNumber)) {
     return {
       isValid: false,
       normalized: null,
@@ -102,30 +77,12 @@ function validateAndNormalizeUKPhoneNumber(phoneNumber) {
   }
 
   try {
-    console.log(`[${new Date().toISOString()}] phone.validate.normalizing`, {
-      operationId
-    })
-    const normalized = normalizeUKPhoneNumber(phoneNumber)
-
-    console.log(`[${new Date().toISOString()}] phone.validate.success`, {
-      operationId,
-      normalized: '***' + normalized.slice(-3)
-    })
-
     return {
       isValid: true,
-      normalized,
+      normalized: normalizeUKPhoneNumber(phoneNumber),
       error: null
     }
   } catch (error) {
-    console.error(
-      `[${new Date().toISOString()}] phone.validate.normalization_error`,
-      {
-        operationId,
-        error: error.message,
-        errorName: error.name
-      }
-    )
     return {
       isValid: false,
       normalized: null,

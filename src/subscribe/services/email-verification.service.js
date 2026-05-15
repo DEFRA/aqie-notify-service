@@ -4,6 +4,11 @@ import { config } from '../../config.js'
 import { randomUUID } from 'node:crypto'
 import { maskEmail } from '../../common/helpers/masking-utils.js'
 
+// 15 minutes in production, 3 hours when useMock=true so automation scripts
+// have a longer window to click the verification link.
+const EMAIL_LINK_EXPIRY_MINUTES = 15
+const MOCK_EMAIL_LINK_EXPIRY_MINUTES = 180
+
 /**
  * Service for managing email verification details in MongoDB
  * Collection: user-email-verification-details
@@ -22,7 +27,7 @@ class EmailVerificationService {
     try {
       await this.collection.createIndex({ contact: 1 }, { unique: true })
       await this.collection.createIndex({ secret: 1 }, { unique: true })
-      this.logger.info('email_verification.indexes.created')
+      this.logger.debug('email_verification.indexes.created')
     } catch (error) {
       this.logger.warn(
         `email_verification.indexes.error ${JSON.stringify({ error: error.message })}`
@@ -46,16 +51,17 @@ class EmailVerificationService {
     location,
     lat,
     long,
-    expiryMinutes = 15
+    expiryMinutes
   ) {
     const operationId = `store_email_${randomUUID()}`
     const uuid = uuidv4()
-    const expiryTime = new Date(Date.now() + expiryMinutes * 60 * 1000)
+    const minutes =
+      expiryMinutes ??
+      (config.get('useMock')
+        ? MOCK_EMAIL_LINK_EXPIRY_MINUTES
+        : EMAIL_LINK_EXPIRY_MINUTES)
+    const expiryTime = new Date(Date.now() + minutes * 60 * 1000)
     const cleanEmail = this.normalizeEmail(emailAddress)
-
-    this.logger.info(
-      `email_verification.store.start ${JSON.stringify({ operationId, emailAddress: maskEmail(cleanEmail), alertType, location, uuid: uuid.substring(0, 8) + '...' })}`
-    )
 
     try {
       const document = {
@@ -75,15 +81,13 @@ class EmailVerificationService {
         }
       }
 
-      const result = await this.collection.replaceOne(
+      await this.collection.replaceOne(
         { contact: cleanEmail },
         document,
         { upsert: true }
       )
 
-      this.logger.info(
-        `email_verification.store.success ${JSON.stringify({ operationId, emailAddress: maskEmail(cleanEmail), uuid: uuid.substring(0, 8) + '...', upserted: result.upsertedId !== null, modified: result.modifiedCount > 0 })}`
-      )
+      this.logger.info(`email_verification.store.success`)
 
       return {
         success: true,
@@ -107,18 +111,12 @@ class EmailVerificationService {
   async getVerificationByUuid(uuid) {
     const operationId = `get_email_${randomUUID()}`
 
-    this.logger.info(
-      `email_verification.get.start ${JSON.stringify({ operationId, uuid: uuid.substring(0, 8) + '...' })}`
-    )
-
     try {
       const result = await this.collection.findOne({
         secret: uuid
       })
 
-      this.logger.info(
-        `email_verification.get.completed ${JSON.stringify({ operationId, uuid: uuid.substring(0, 8) + '...', found: !!result })}`
-      )
+      this.logger.info(`email_verification.get.completed`)
 
       return result
     } catch (error) {

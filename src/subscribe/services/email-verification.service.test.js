@@ -98,7 +98,7 @@ describe('Email Verification Service', () => {
       await service.ensureIndexes()
 
       expect(mockCollection.createIndex).toHaveBeenCalledTimes(2)
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         'email_verification.indexes.created'
       )
     })

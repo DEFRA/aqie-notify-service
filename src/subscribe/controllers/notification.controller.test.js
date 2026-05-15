@@ -357,7 +357,7 @@ describe('sendNotificationHandler', () => {
       )
       expect(failedLog).toBeDefined()
       expect(failedLog).toContain('"contactType":"sms"')
-      expect(failedLog).toContain('"error":"SMS gateway timeout"')
+      expect(failedLog).toContain('"errorName":"Error"')
       expect(failedLog).toContain('SMS-FAIL-LOG-ID')
     })
 
@@ -413,7 +413,7 @@ describe('sendNotificationHandler', () => {
       )
       expect(failedLog).toBeDefined()
       expect(failedLog).toContain('"contactType":"email"')
-      expect(failedLog).toContain('"error":"Email service unavailable"')
+      expect(failedLog).toContain('"errorName":"Error"')
       expect(failedLog).toContain('EMAIL-FAIL-LOG-ID')
     })
   })

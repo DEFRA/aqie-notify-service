@@ -126,16 +126,13 @@ describe('UserNotificationDetailService', () => {
       expect(result).toEqual({ success: true, insertedId: 'abc-123' })
     })
 
-    it('should log start and success messages', async () => {
+    it('should log success message', async () => {
       const { createUserNotificationDetailService } = await loadService()
       const service = createUserNotificationDetailService(mockDb, mockLogger)
       mockCollection.insertOne.mockResolvedValue({ insertedId: 'abc-123' })
 
       await service.storeNotificationDetail(validParams)
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('user_notification_detail.store.start')
-      )
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('user_notification_detail.store.success')
       )

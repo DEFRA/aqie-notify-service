@@ -129,6 +129,12 @@ const config = convict({
       env: 'TRACING_HEADER'
     }
   },
+  useMock: {
+    doc: 'Bypass real OTP/email-verification flows for automation testing. When true, OTPs are stored in DB as a fixed value and the email verification token is returned in the API response. MUST be false in production.',
+    format: Boolean,
+    default: true,
+    env: 'USE_MOCK'
+  },
   notify: {
     apiKey: {
       doc: 'GOV.UK Notify API Key',
@@ -197,5 +203,16 @@ const config = convict({
 })
 
 config.validate({ allowed: 'strict' })
+
+const RESTRICTED_USE_MOCK_ENVIRONMENTS = ['prod', 'ext-test']
+if (
+  config.get('useMock') &&
+  RESTRICTED_USE_MOCK_ENVIRONMENTS.includes(config.get('cdpEnvironment'))
+) {
+  throw new Error(
+    `useMock=true is not permitted in environment '${config.get('cdpEnvironment')}'. ` +
+      `Set USE_MOCK=false (or unset it) before starting the service.`
+  )
+}
 
 export { config }

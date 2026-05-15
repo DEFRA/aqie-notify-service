@@ -1,6 +1,7 @@
 import Boom from '@hapi/boom'
+import { randomUUID } from 'node:crypto'
 import { createEmailVerificationService } from '../services/email-verification.service.js'
-import { maskEmail } from '../../common/helpers/masking-utils.js'
+import { maskEmail, maskUuid } from '../../common/helpers/masking-utils.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
@@ -8,8 +9,17 @@ const HTTP_STATUS_OK = 200
 const HTTP_STATUS_VALIDATION_FAILURE = 400
 
 async function validateLinkHandler(request, h) {
+  const requestId =
+    request.headers['x-cdp-request-id'] ||
+    request.info.id ||
+    `req_${randomUUID()}`
+  const { uuid } = request.params
+
+  logger.info(
+    `validate_link.requested ${JSON.stringify({ requestId, uuid: maskUuid(uuid), userAgent: request.headers['user-agent'], ip: request.info.remoteAddress })}`
+  )
+
   try {
-    const { uuid } = request.params
     const emailVerificationService = await createEmailVerificationService(
       request.db,
       logger
@@ -19,7 +29,7 @@ async function validateLinkHandler(request, h) {
 
     if (result.error) {
       logger.warn(
-        `validate_link.validation_failed ${JSON.stringify({ error: result.error, hasData: !!result.data })}`
+        `validate_link.validation_failed ${JSON.stringify({ requestId, uuid: maskUuid(uuid), error: result.error, hasData: !!result.data })}`
       )
 
       // Return error with user data if available
@@ -41,7 +51,7 @@ async function validateLinkHandler(request, h) {
     }
 
     logger.info(
-      `validate_link.success ${JSON.stringify({ emailAddress: result.data?.emailAddress ? maskEmail(result.data.emailAddress) : undefined })}`
+      `validate_link.success ${JSON.stringify({ requestId, uuid: maskUuid(uuid), emailAddress: result.data?.emailAddress ? maskEmail(result.data.emailAddress) : undefined })}`
     )
 
     return h
@@ -56,7 +66,7 @@ async function validateLinkHandler(request, h) {
       .code(HTTP_STATUS_OK)
   } catch (err) {
     logger.error(
-      `validate_link.unexpected_error ${JSON.stringify({ error: err.message, errorName: err.name })}`
+      `validate_link.unexpected_error ${JSON.stringify({ requestId, uuid: maskUuid(uuid), error: err.message, errorName: err.name })}`
     )
     return Boom.internal('Failed to validate link')
   }

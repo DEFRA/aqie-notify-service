@@ -1,6 +1,7 @@
 // email-verification.controller.test.js
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateLinkHandler } from './email-verification.controller.js'
+import { config } from '../../config.js'
 
 // ------------------------------------------------------------
 // MOCKS — Declared BEFORE SUT import to avoid hoisting errors
@@ -21,6 +22,19 @@ const { mockLogger } = vi.hoisted(() => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn()
+  }
+}))
+
+// Hoisted so it can be referenced inside vi.mock factories below.
+// Returns a config.get implementation with a single return statement
+// (avoids sonarqube javascript:S3800 on branched mixed-type returns).
+const { mockConfigGet } = vi.hoisted(() => ({
+  mockConfigGet(useMockValue = false) {
+    const values = {
+      'notify.emailTemplateId': 'tmpl-123',
+      useMock: useMockValue
+    }
+    return (key) => values[key] ?? null
   }
 }))
 
@@ -45,10 +59,7 @@ vi.mock('../services/notify-service.js', () => ({
 // Mock config
 vi.mock('../../config.js', () => ({
   config: {
-    get: vi.fn((key) => {
-      if (key === 'notify.emailTemplateId') return 'tmpl-123'
-      return null
-    })
+    get: vi.fn(mockConfigGet(false))
   }
 }))
 
@@ -89,6 +100,9 @@ function makeBaseRequest(overrides = {}) {
   }
 }
 
+const STATUS_CODE_201 = 201
+const ERROR_CODE_500 = 500
+const SOURCE_MSG = 'Link has been sent to email'
 // ------------------------------------------------------------
 // TESTS
 // ------------------------------------------------------------
@@ -121,8 +135,8 @@ describe('generateLinkHandler', () => {
     const res = await generateLinkHandler(request, h)
 
     // Response
-    expect(res.statusCode).toBe(201)
-    expect(res.source.message).toBe('Link has been sent to email')
+    expect(res.statusCode).toBe(STATUS_CODE_201)
+    expect(res.source.message).toBe(SOURCE_MSG)
 
     // Service call
     expect(mockStoreVerificationDetails).toHaveBeenCalled()
@@ -130,13 +144,12 @@ describe('generateLinkHandler', () => {
     // Logs
     const logs = mockLogger.info.mock.calls.map((c) => c[0])
 
-    expect(logs.some((l) => l.includes('email.generate_link.start'))).toBe(true)
-    expect(logs.some((l) => l.includes('email.generate_link.stored'))).toBe(
+    expect(logs.some((l) => l.includes('email.generate_link.requested'))).toBe(
       true
     )
 
     const successLog = logs.find((l) =>
-      l.includes('email.generate_link.notification_success')
+      l.includes('email.generate_link.success')
     )
     expect(successLog).toContain('"requestId":"RID-123"')
     expect(successLog).toContain('"notificationId":"notif-001"')
@@ -163,7 +176,7 @@ describe('generateLinkHandler', () => {
 
     const res = await generateLinkHandler(request, h)
 
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode).toBe(STATUS_CODE_201)
 
     const errorLogs = mockLogger.error.mock.calls.map((c) => c[0])
 
@@ -172,7 +185,7 @@ describe('generateLinkHandler', () => {
     )
 
     expect(entry).toContain('"requestId":"INFO-22"')
-    expect(entry).toContain('"error":"Notify down"')
+    expect(entry).toContain('"errorName":"Error"')
   })
 
   // ---------------------------------------
@@ -181,7 +194,7 @@ describe('generateLinkHandler', () => {
   it('randomUUID requestId + OUTER ERROR (store throws) → Boom.internal 500', async () => {
     const request = makeBaseRequest({
       headers: {},
-      info: { id: undefined }
+      info: { id: null }
     })
     const h = makeH()
 
@@ -190,7 +203,7 @@ describe('generateLinkHandler', () => {
     const res = await generateLinkHandler(request, h)
 
     expect(res.isBoom).toBe(true)
-    expect(res.output.statusCode).toBe(500)
+    expect(res.output.statusCode).toBe(ERROR_CODE_500)
 
     const errorLogs = mockLogger.error.mock.calls.map((c) => c[0])
     const unexpected = errorLogs.find((l) =>
@@ -225,7 +238,7 @@ describe('generateLinkHandler', () => {
 
     // Outer catch should trigger → Boom 500
     expect(res.isBoom).toBe(true)
-    expect(res.output.statusCode).toBe(500)
+    expect(res.output.statusCode).toBe(ERROR_CODE_500)
 
     // Flatten all info logger calls into searchable strings
     // Controller logs with single string argument: logger.info('event {...}')
@@ -248,13 +261,7 @@ describe('generateLinkHandler', () => {
     )
     expect(startLog).toBeDefined()
 
-    // Assert: second log is 'email.generate_link.start'
-    const startLog2 = infoLogs.find((l) =>
-      l.includes('email.generate_link.start')
-    )
-    expect(startLog2).toBeDefined()
-
-    // Assert: requestId is present in the start log
+    // Assert: requestId is present in the entry log
     expect(startLog).toContain('"requestId":"INFO-DEFAULT"')
 
     // Assert: unexpected_error was logged with correct details
@@ -268,67 +275,87 @@ describe('generateLinkHandler', () => {
     // Assert: at least one error was logged
     expect(mockLogger.error.mock.calls.length).toBeGreaterThan(0)
   })
-  it('first log with email undefined → hits OUTER catch, logs "undefined"', async () => {
+
+  // ---------------------------------------
+  // useMock=false (default) → response body excludes verificationToken
+  // ---------------------------------------
+  it('useMock=false → response body does NOT include verificationToken', async () => {
+    config.get.mockImplementation(mockConfigGet(false))
+
     const request = makeBaseRequest({
-      payload: {
-        // emailAddress intentionally omitted - will be undefined
-        alertType: 'daily',
-        location: 'London',
-        lat: 1,
-        long: 2
-      }
+      headers: { 'x-cdp-request-id': 'RID-NO-MOCK' }
     })
     const h = makeH()
 
-    mockStoreVerificationDetails.mockRejectedValueOnce(
-      new Error('emailAddress is not defined')
-    )
+    mockStoreVerificationDetails.mockResolvedValueOnce({
+      uuid: 'uuid-real-9999',
+      success: true,
+      verificationLink: 'https://verify/link/real'
+    })
+    mockSendEmail.mockResolvedValueOnce({ notificationId: 'notif-002' })
 
     const res = await generateLinkHandler(request, h)
 
-    // Outer catch should trigger → Boom 500
-    expect(res.isBoom).toBe(true)
-    expect(res.output.statusCode).toBe(500)
+    expect(res.statusCode).toBe(STATUS_CODE_201)
+    expect(res.source.message).toBe(SOURCE_MSG)
+    expect(res.source.timestamp).toBeDefined()
+    expect(res.source.verificationToken).toBeUndefined()
+  })
 
-    // Flatten all info logger calls into searchable strings
-    // Controller logs with single string argument: logger.info('event {...}')
-    const infoLogs = mockLogger.info.mock.calls.map((c) =>
-      typeof c[1] === 'object'
-        ? `${c[0]} ${JSON.stringify(c[1])}`
-        : String(c[0])
-    )
+  // ---------------------------------------
+  // useMock=true → response body includes verificationToken (the raw uuid)
+  // ---------------------------------------
+  it('useMock=true + notification SUCCESS → response includes verificationToken', async () => {
+    config.get.mockImplementation(mockConfigGet(true))
 
-    // Flatten all error logger calls into searchable strings
-    const errorLogs = mockLogger.error.mock.calls.map((c) =>
-      typeof c[1] === 'object'
-        ? `${c[0]} ${JSON.stringify(c[1])}`
-        : String(c[0])
-    )
+    const request = makeBaseRequest({
+      headers: { 'x-cdp-request-id': 'RID-MOCK' }
+    })
+    const h = makeH()
 
-    // Assert: first log is 'email.generate_link.requested'
-    const startLog = infoLogs.find((l) =>
-      l.includes('email.generate_link.requested')
-    )
-    expect(startLog).toBeDefined()
+    mockStoreVerificationDetails.mockResolvedValueOnce({
+      uuid: 'uuid-mock-1111',
+      success: true,
+      verificationLink: 'https://verify/link/mock'
+    })
+    mockSendEmail.mockResolvedValueOnce({ notificationId: 'notif-003' })
 
-    // Assert: second log is 'email.generate_link.start'
-    const startLog2 = infoLogs.find((l) =>
-      l.includes('email.generate_link.start')
-    )
-    expect(startLog2).toBeDefined()
+    const res = await generateLinkHandler(request, h)
 
-    // Assert: requestId is present in the start log
-    expect(startLog).toContain('"requestId":"INFO-DEFAULT"')
+    expect(res.statusCode).toBe(STATUS_CODE_201)
+    expect(res.source.message).toBe(SOURCE_MSG)
+    expect(res.source.verificationToken).toBe('uuid-mock-1111')
+  })
 
-    // Assert: unexpected_error was logged with correct details
-    const unexpectedError = errorLogs.find((l) =>
-      l.includes('email.generate_link.unexpected_error')
-    )
-    expect(unexpectedError).toBeDefined()
-    expect(unexpectedError).toContain('"error":"emailAddress is not defined"')
-    expect(unexpectedError).toContain('"requestId":"INFO-DEFAULT"')
+  // ---------------------------------------
+  // useMock=true + notification FAILURE → still 201 and verificationToken present
+  // ---------------------------------------
+  it('useMock=true + notification FAILURE → still returns 201 with verificationToken', async () => {
+    config.get.mockImplementation(mockConfigGet(true))
 
-    // Assert: at least one error was logged
-    expect(mockLogger.error.mock.calls.length).toBeGreaterThan(0)
+    const request = makeBaseRequest({
+      headers: { 'x-cdp-request-id': 'RID-MOCK-FAIL' }
+    })
+    const h = makeH()
+
+    mockStoreVerificationDetails.mockResolvedValueOnce({
+      uuid: 'uuid-mock-2222',
+      success: true,
+      verificationLink: 'https://verify/link/mock-fail'
+    })
+    mockSendEmail.mockRejectedValueOnce(new Error('Notify down'))
+
+    const res = await generateLinkHandler(request, h)
+
+    expect(res.statusCode).toBe(STATUS_CODE_201)
+    expect(res.source.message).toBe(SOURCE_MSG)
+    expect(res.source.verificationToken).toBe('uuid-mock-2222')
+
+    const errorLogs = mockLogger.error.mock.calls.map((c) => c[0])
+    expect(
+      errorLogs.some((l) =>
+        l.includes('email.generate_link.notification_failed')
+      )
+    ).toBe(true)
   })
 })

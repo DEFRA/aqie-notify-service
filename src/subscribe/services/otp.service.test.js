@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createOtpService } from './otp.service.js'
 import { validateAndNormalizeUKPhoneNumber } from '../../common/helpers/phone-validation.js'
 import { generateOTPWithExpiry } from '../../common/helpers/otp-generator.js'
+import { config } from '../../config.js'
 
 import { createUserContactService } from './user-contact-service.js'
 
@@ -18,6 +19,12 @@ vi.mock('../../common/helpers/otp-generator.js', () => ({
 
 vi.mock('./user-contact-service.js', () => ({
   createUserContactService: vi.fn()
+}))
+
+vi.mock('../../config.js', () => ({
+  config: {
+    get: vi.fn(() => false)
+  }
 }))
 
 describe('OTP Service', () => {
@@ -39,6 +46,10 @@ describe('OTP Service', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    // Reset config default (clearAllMocks does not reset implementations,
+    // so mockImplementation set by individual tests would otherwise leak)
+    config.get.mockImplementation(() => false)
 
     // Setup user contact service mock
     createUserContactService.mockReturnValue(mockUserContactService)
@@ -94,11 +105,6 @@ describe('OTP Service', () => {
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
-        expect(mockLogger.info).toHaveBeenCalledWith(
-          expect.stringContaining('otp.generate.success')
-        )
-        const logCall = mockLogger.info.mock.calls[0][0]
-        expect(logCall).toContain('****6789')
         expect(result).toEqual({
           normalizedPhoneNumber: normalizedPhone,
           otp
@@ -115,10 +121,24 @@ describe('OTP Service', () => {
         expect(
           mockUserContactService.storeVerificationDetails
         ).toHaveBeenCalledWith(normalizedPhone, otp, expiryTime)
-        expect(mockLogger.info).toHaveBeenCalled()
 
         expect(result.normalizedPhoneNumber).toBe(normalizedPhone)
         expect(result.otp).toBe(otp)
+      })
+
+      it('should store fixed mock OTP "12345" in DB but return real OTP when useMock=true', async () => {
+        config.get.mockImplementation((key) => key === 'useMock')
+
+        const result = await otpService.generate(phoneNumber)
+
+        expect(
+          mockUserContactService.storeVerificationDetails
+        ).toHaveBeenCalledWith(normalizedPhone, '12345', expiryTime)
+        // Real OTP is still returned so Notify sends the actual code
+        expect(result).toEqual({
+          normalizedPhoneNumber: normalizedPhone,
+          otp
+        })
       })
     })
 
@@ -188,11 +208,6 @@ describe('OTP Service', () => {
           normalizedPhone,
           otp
         )
-        expect(mockLogger.info).toHaveBeenCalledWith(
-          expect.stringContaining('otp.validate.success')
-        )
-        const logCall = mockLogger.info.mock.calls[0][0]
-        expect(logCall).toContain('****6789')
         expect(result).toEqual({
           normalizedPhoneNumber: normalizedPhone
         })
