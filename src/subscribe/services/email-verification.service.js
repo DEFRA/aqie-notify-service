@@ -81,11 +81,9 @@ class EmailVerificationService {
         }
       }
 
-      await this.collection.replaceOne(
-        { contact: cleanEmail },
-        document,
-        { upsert: true }
-      )
+      await this.collection.replaceOne({ contact: cleanEmail }, document, {
+        upsert: true
+      })
 
       this.logger.info(`email_verification.store.success`)
 
