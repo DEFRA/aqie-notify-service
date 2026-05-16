@@ -78,6 +78,19 @@ function logInfo(logger, context, eventType, message, additionalFields = {}) {
 }
 
 /**
+ * Enhanced debug logging with context
+ */
+function logDebug(logger, context, eventType, message, additionalFields = {}) {
+  logger.debug(
+    `${context.operationType}.${eventType} [${context.correlationId}] ${message}`,
+    {
+      ...context.getBaseFields(),
+      ...additionalFields
+    }
+  )
+}
+
+/**
  * Performance tracking helper
  */
 function trackPerformance(logger, context, operation, additionalMetrics = {}) {
@@ -93,4 +106,4 @@ function trackPerformance(logger, context, operation, additionalMetrics = {}) {
   })
 }
 
-export { createLoggingContext, logError, logInfo, trackPerformance }
+export { createLoggingContext, logError, logInfo, logDebug, trackPerformance }

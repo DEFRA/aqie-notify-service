@@ -15,10 +15,6 @@ function createSmsReplyService(db, logger) {
         const response = await client.getReceivedTexts()
         const messages = response.data.received_text_messages || []
 
-        logger.info(
-          `sms_reply.poll ${JSON.stringify({ totalMessages: messages.length })}`
-        )
-
         let newMessages = 0
         let alreadyProcessed = 0
         const processedPhones = new Set()
@@ -37,7 +33,9 @@ function createSmsReplyService(db, logger) {
         )
         return { total: messages.length, processed: newMessages }
       } catch (error) {
-        logger.error({ error: error.message }, 'sms_reply.poll.failure')
+        logger.error(
+          `sms_reply.poll.failure ${JSON.stringify({ error: error.message, errorName: error.name, cause: error.cause?.code })}`
+        )
         throw error
       }
     },

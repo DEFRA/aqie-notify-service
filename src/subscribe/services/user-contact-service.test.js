@@ -141,10 +141,10 @@ describe('User Contact Service', () => {
         modified: false
       })
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('user_contact.store.success')
       )
-      const logCall = mockLogger.info.mock.calls.find((call) =>
+      const logCall = mockLogger.debug.mock.calls.find((call) =>
         call[0].includes('user_contact.store.success')
       )
       expect(logCall[0]).toContain('***789')
@@ -178,10 +178,10 @@ describe('User Contact Service', () => {
         modified: true
       })
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('user_contact.store.success')
       )
-      const logCall = mockLogger.info.mock.calls.find((call) =>
+      const logCall = mockLogger.debug.mock.calls.find((call) =>
         call[0].includes('user_contact.store.success')
       )
       expect(logCall[0]).toContain('***789')
@@ -343,14 +343,6 @@ describe('User Contact Service', () => {
           }
         }
       )
-
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('user_contact.validate.success')
-      )
-      const logCall = mockLogger.info.mock.calls.find((call) =>
-        call[0].includes('user_contact.validate.success')
-      )
-      expect(logCall[0]).toContain('***789')
     })
 
     it('should handle database errors in validateSecret', async () => {

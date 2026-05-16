@@ -8,10 +8,6 @@ class UserNotificationDetailService {
   }
 
   async storeNotificationDetail({ notificationId, alertId, notifyStatus }) {
-    this.logger.info(
-      `user_notification_detail.store.start ${JSON.stringify({ notificationId, alertId, notifyStatus })}`
-    )
-
     try {
       const document = {
         notificationId,
@@ -22,9 +18,7 @@ class UserNotificationDetailService {
 
       const result = await this.collection.insertOne(document)
 
-      this.logger.info(
-        `user_notification_detail.store.success ${JSON.stringify({ notificationId, alertId, insertedId: result.insertedId })}`
-      )
+      this.logger.info(`user_notification_detail.store.success`)
 
       return { success: true, insertedId: result.insertedId }
     } catch (error) {

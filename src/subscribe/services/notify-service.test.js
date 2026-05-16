@@ -67,7 +67,9 @@ function createMockSetup() {
 
   const mockLogger = {
     info: vi.fn(),
-    error: vi.fn()
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
   }
 
   return { mockNotifyClient, mockConfig, mockLogger }

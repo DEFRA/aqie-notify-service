@@ -36,10 +36,6 @@ class UserContactService {
    */
   async storeVerificationDetails(contact, secret, expiryTime) {
     const operationId = `store_${randomUUID()}`
-    this.logger.info(
-      `user_contact.store.start ${JSON.stringify({ operationId, contact: maskContact(contact), expiryTime: expiryTime?.toISOString(), secretLength: secret?.length })}`
-    )
-
     try {
       const document = {
         contact,
@@ -50,16 +46,12 @@ class UserContactService {
         updatedAt: new Date()
       }
 
-      this.logger.info(
-        `user_contact.store.executing_upsert ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
-      )
-
       // Upsert the document (update if exists, insert if not)
       const result = await this.collection.replaceOne({ contact }, document, {
         upsert: true
       })
 
-      this.logger.info(
+      this.logger.debug(
         `user_contact.store.success ${JSON.stringify({ operationId, contact: maskContact(contact), upserted: result.upsertedId !== null, modified: result.modifiedCount > 0, matchedCount: result.matchedCount })}`
       )
 
@@ -84,15 +76,7 @@ class UserContactService {
    */
   async validateSecret(contact, secret) {
     const operationId = `validate_${randomUUID()}`
-    this.logger.info(
-      `user_contact.validate.start ${JSON.stringify({ operationId, contact: maskContact(contact), secretLength: secret?.length })}`
-    )
-
     try {
-      this.logger.info(
-        `user_contact.validate.finding_document ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
-      )
-
       const document = await this.collection.findOne({ contact })
 
       if (!document) {
@@ -104,11 +88,6 @@ class UserContactService {
           error: 'Contact Detail not found'
         }
       }
-
-      this.logger.info(
-        `user_contact.validate.document_found ${JSON.stringify({ operationId, contact: maskContact(contact), documentCreatedAt: document.createdAt?.toISOString(), documentExpiryTime: document.expiryTime?.toISOString(), documentValidated: document.validated })}`
-      )
-
       if (document.secret !== secret) {
         this.logger.warn(
           `user_contact.validate.secret_mismatch ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
@@ -141,10 +120,6 @@ class UserContactService {
         }
       }
 
-      this.logger.info(
-        `user_contact.validate.marking_as_validated ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
-      )
-
       // Mark secret as validated
       const updateResult = await this.collection.updateOne(
         { contact },
@@ -162,10 +137,6 @@ class UserContactService {
         )
         throw new Error('Failed to mark secret as validated')
       }
-
-      this.logger.info(
-        `user_contact.validate.success ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
-      )
 
       return {
         valid: true,
@@ -186,16 +157,12 @@ class UserContactService {
    */
   async getUserByContact(contact) {
     const operationId = `get_${randomUUID()}`
-    this.logger.info(
+    this.logger.debug(
       `user_contact.get.start ${JSON.stringify({ operationId, contact: maskContact(contact) })}`
     )
 
     try {
       const result = await this.collection.findOne({ contact })
-
-      this.logger.info(
-        `user_contact.get.completed ${JSON.stringify({ operationId, contact: maskContact(contact), found: !!result, documentCreatedAt: result?.createdAt?.toISOString(), documentValidated: result?.validated })}`
-      )
 
       return result
     } catch (error) {

@@ -123,7 +123,7 @@ describe('processSmsRepliesHandler', () => {
       expect.stringContaining('process_sms_replies.failure')
     )
     const logCall = mockLogger.error.mock.calls[0][0]
-    expect(logCall).toContain('Something bad happened')
+    expect(logCall).toContain('"errorName":"Error"')
     expect(logCall).toContain('req-123')
 
     // Should return Boom.internal

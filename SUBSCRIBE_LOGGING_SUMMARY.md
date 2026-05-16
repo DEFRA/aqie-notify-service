@@ -1,357 +1,233 @@
-# Subscribe Folder Logging Enhancements
+# Subscribe Folder Logging
 
-This document summarizes the comprehensive logging enhancements added to all files in the `src/subscribe` folder for better debugging and root cause analysis.
+This document describes the logging strategy used across the `src/subscribe` folder. The strategy is **minimal in steady state, rich on failure** — keeping the CDP log portal lean while preserving everything an on-call needs to diagnose an incident.
 
-## Enhanced Files
+## Logging Strategy
 
-### Controllers
+The rule applied across every handler and service:
 
-#### 1. `controllers/otp.controller.js`
+| Layer          | Success path                                                                 | Failure path                                 |
+| :------------- | :--------------------------------------------------------------------------- | :------------------------------------------- |
+| **Controller** | 1× INFO at entry (`*.requested`) + 1× INFO at terminal outcome (`*.success`) | Entry INFO + 1× ERROR/WARN                   |
+| **Service**    | All step-by-step traces at **DEBUG** (not emitted to CDP by default)         | All `warn`/`error` retained at full richness |
 
-**Enhanced Functions:**
+**Why:**
 
-- `generateOtpHandler()` - OTP generation endpoint
-- `validateOtpHandler()` - OTP validation endpoint
+- INFO is the floor that CDP receives. Keeping it to two lines per request keeps the portal cheap to query and read.
+- DEBUG is opt-in. When you genuinely need step-by-step traces during a live investigation, flip the log level — the events are still there.
+- `warn`/`error` are rare (they only fire when something is wrong) so cost is negligible, and they carry full context (operationId, masked contact, error category, etc.).
 
-**Logging Added:**
+## Per-endpoint Logs
 
-- Request entry with masked phone numbers and request metadata
-- Service operation tracking with success/failure states
-- OTP creation confirmation (length only, not the actual OTP)
-- Notification sending attempts and results
-- Validation failures with specific error reasons
-- Comprehensive error handling with stack traces
+### `POST /subscribe/generate-otp` — [otp.controller.js](src/subscribe/controllers/otp.controller.js)
 
-**Key Log Events:**
-
-```
-otp.generate.requested - Initial request received
-otp.generate.start - Processing begins
-otp.generate.service_result - Service operation result
-otp.generate.otp_created - OTP successfully created
-otp.generate.notification_start - Notification sending begins
-otp.generate.notification_success - Notification sent successfully
-otp.generate.notification_failed - Notification sending failed
-otp.generate.validation_failed - Phone validation failed
-otp.generate.unexpected_error - Unexpected error occurred
-
-otp.validate.requested - Validation request received
-otp.validate.start - Validation processing begins
-otp.validate.service_result - Service validation result
-otp.validate.success - OTP validated successfully
-otp.validate.validation_failed - OTP validation failed
-otp.validate.unexpected_error - Unexpected error occurred
-```
-
-#### 2. `controllers/notification.controller.js`
-
-**Enhanced Functions:**
-
-- `sendNotificationHandler()` - Generic notification sending endpoint
-
-**Logging Added:**
-
-- Request tracking with masked contact details
-- Contact type detection (SMS vs Email)
-- Template ID and personalisation key tracking
-- Success/failure states with notification IDs
-- Comprehensive error information
-
-**Key Log Events:**
+**Success (2 INFO):**
 
 ```
-notification.send.requested - Notification request received
-notification.send.start - Processing begins
-notification.send.success - Notification sent successfully
-notification.send.failed - Notification sending failed
+INFO otp.generate.requested { requestId, phoneNumber, userAgent, ip }
+INFO otp.generate.success   { requestId, normalizedPhoneNumber, notificationId, status: "submitted" }
 ```
 
-#### 3. `controllers/link.controller.js`
+**Failure events:**
 
-**Enhanced Functions:**
+- `WARN otp.generate.validation_failed` — invalid phone number
+- `ERROR otp.generate.notification_failed` — Notify call failed (rich detail logged at service level — see `notify.send_sms_generic.failure`)
+- `ERROR otp.generate.unexpected_error` — uncaught exception
 
-- `generateLinkHandler()` - Email verification link generation
+### `POST /subscribe/validate-otp` — [otp.controller.js](src/subscribe/controllers/otp.controller.js)
 
-**Logging Added:**
-
-- Request tracking with masked email addresses
-- Email validation results
-- Verification email sending attempts
-- Location name and verification URL tracking
-- Error handling with detailed context
-
-**Key Log Events:**
+**Success (2 INFO):**
 
 ```
-link.generate.requested - Link generation requested
-link.generate.start - Processing begins
-link.generate.validation_result - Email validation result
-link.generate.sending_email - Email sending attempt
-link.generate.email_sent - Email sent successfully
-link.generate.email_failed - Email sending failed
-link.generate.validation_failed - Email validation failed
-link.generate.unexpected_error - Unexpected error occurred
+INFO otp.validate.requested { requestId, phoneNumber, otpProvided, userAgent, ip }
+INFO otp.validate.success   { requestId, normalizedPhoneNumber }
 ```
 
-### Services
+**Failure events:**
 
-#### 1. `services/otp.service.js`
+- `WARN user_contact.validate.document_not_found` — phone not registered
+- `WARN user_contact.validate.secret_mismatch` — wrong OTP
+- `WARN user_contact.validate.secret_expired` — OTP past expiry
+- `WARN user_contact.validate.secret_already_used` — OTP already validated
+- `WARN otp.validate.validation_failed` — surfaced from service
+- `ERROR otp.validate.unexpected_error` — uncaught exception
 
-**Enhanced Functions:**
+### `POST /send-notification` — [notification.controller.js](src/subscribe/controllers/notification.controller.js)
 
-- `generate()` - OTP generation service
-- `validate()` - OTP validation service
-
-**Logging Added:**
-
-- Operation ID tracking for each service call
-- Phone number validation steps
-- OTP creation and storage operations
-- Database interaction results
-- Detailed error tracking with stack traces
-
-**Key Log Events:**
+**Success (2 INFO):**
 
 ```
-otp.service.generate.start - Service generation begins
-otp.service.generate.validating_phone - Phone validation step
-otp.service.generate.phone_normalized - Phone number normalized
-otp.service.generate.creating_otp - OTP creation step
-otp.service.generate.storing_otp - Database storage step
-otp.service.generate.success - Service operation successful
-otp.service.generate.error - Service operation failed
-
-otp.service.validate.start - Service validation begins
-otp.service.validate.validating_phone - Phone validation step
-otp.service.validate.phone_normalized - Phone number normalized
-otp.service.validate.checking_otp - OTP verification step
-otp.service.validate.success - Service operation successful
-otp.service.validate.error - Service operation failed
+INFO notification.send.requested { requestId, contactType, templateId }
+INFO notification.send.success   { requestId, notificationId, contactType, alertId, insertedId }
 ```
 
-#### 2. `services/user-contact-service.js`
+The success log fires _after_ the notification detail is persisted to the `user-notification-details` collection, so `insertedId` is captured for audit.
 
-**Enhanced Functions:**
+**Failure events:**
 
-- `storeVerificationDetails()` - Store OTP in database
-- `validateSecret()` - Validate stored OTP
-- `getUserByContact()` - Retrieve user by contact
+- `ERROR notification.send.failed` — lean controller log (`requestId`, `contactType`, `templateId`, `errorName`); rich detail at `notify.send_sms_generic.failure` / `notify.send_email.failure`
 
-**Logging Added:**
+HTTP response on failure: **424 Failed Dependency**.
 
-- Operation ID tracking for database operations
-- Document upsert/update tracking
-- Validation step-by-step logging
-- Expiry time checking
-- Already-used OTP detection
-- Database operation results
+### `POST /subscribe/generate-link` — [email-verification.controller.js](src/subscribe/controllers/email-verification.controller.js)
 
-**Key Log Events:**
+**Success (2 INFO):**
 
 ```
-user_contact.store.start - Storage operation begins
-user_contact.store.executing_upsert - Database upsert operation
-user_contact.store.success - Storage successful
-user_contact.store.error - Storage failed
-
-user_contact.validate.start - Validation begins
-user_contact.validate.finding_document - Document lookup
-user_contact.validate.document_found - Document retrieved
-user_contact.validate.document_not_found - Document not found
-user_contact.validate.secret_mismatch - Invalid OTP provided
-user_contact.validate.secret_expired - OTP has expired
-user_contact.validate.secret_already_used - OTP already used
-user_contact.validate.marking_as_validated - Marking OTP as used
-user_contact.validate.success - Validation successful
-user_contact.validate.error - Validation failed
-
-user_contact.get.start - User lookup begins
-user_contact.get.completed - User lookup completed
-user_contact.get.error - User lookup failed
+INFO email.generate_link.requested { requestId, emailAddress, alertType, location, userAgent, ip }
+INFO email.generate_link.success   { requestId, emailAddress, uuid, notificationId }
 ```
 
-#### 3. `services/notify-service.js`
+**Failure events:**
 
-**Enhanced Functions:**
+- `ERROR email.generate_link.notification_failed` — Notify call failed (controller still returns 201, so check this log if a user reports a missing email)
+- `ERROR email.generate_link.unexpected_error` — uncaught exception
 
-- `sendSmsGeneric()` - Generic SMS sending
-- `sendEmailGeneric()` - Generic email sending
-- `getNotificationStatus()` - Check notification status
+### `GET /subscribe/validate-link/{uuid}` — [validate-link.controller.js](src/subscribe/controllers/validate-link.controller.js)
 
-**Logging Added:**
-
-- Operation ID tracking for external API calls
-- Masked contact details for security
-- GOV.UK Notify API request/response tracking
-- Error categorization and retry information
-- Performance and timing information
-
-**Key Log Events:**
+**Success (2 INFO):**
 
 ```
-notify.send_sms.start - SMS sending begins
-notify.send_sms.calling_notify_api - API call to Notify service
-notify.send_sms.api_response_received - Response received from API
-notify.send_sms.success - SMS sent successfully
-notify.send_sms.failure - SMS sending failed
-notify.send_sms.missing_parameters - Required parameters missing
-notify.send_sms.missing_notification_id - Notification ID missing
-
-notify.send_email.start - Email sending begins
-notify.send_email.calling_notify_api - API call to Notify service
-notify.send_email.api_response_received - Response received from API
-notify.send_email.success - Email sent successfully
-notify.send_email.failure - Email sending failed
-
-notify.get_status.start - Status check begins
-notify.get_status.calling_notify_api - API call to Notify service
-notify.get_status.success - Status retrieved successfully
-notify.get_status.failure - Status check failed
+INFO validate_link.requested { requestId, uuid, userAgent, ip }
+INFO validate_link.success   { requestId, uuid, emailAddress }
 ```
 
-#### 4. `services/link.service.js`
+**Failure events:**
 
-**Enhanced Functions:**
+- `WARN validate_link.validation_failed` — invalid / expired / already-validated UUID (includes `hasData` flag for UI re-prompt logic)
+- `ERROR validate_link.unexpected_error` — uncaught exception
 
-- `validateEmail()` - Email format validation
+### `GET /process-sms-replies` — [sms-reply.controller.js](src/subscribe/controllers/sms-reply.controller.js)
 
-**Logging Added:**
-
-- Operation ID tracking
-- Email format validation steps
-- Masked email addresses for security
-- Validation results and error handling
-
-**Key Log Events:**
+**Success (3 INFO — controller entry/success + service terminal summary):**
 
 ```
-link.service.validate_email.start - Email validation begins
-link.service.validate_email.checking_format - Format validation step
-link.service.validate_email.success - Email validation successful
-link.service.validate_email.invalid_format - Invalid email format
-link.service.validate_email.error - Validation error occurred
+INFO process_sms_replies.requested { requestId, userAgent, ip }
+INFO sms_reply.poll.complete       { total, newMessages, alreadyProcessed }
+INFO process_sms_replies.success   { requestId, total, processed }
 ```
 
-## Security Features
+Per-message processing is at DEBUG. Two business events stay at INFO because they are state changes with audit value and very low volume:
 
-### Data Masking
+- `INFO sms_reply.stop.unsubscribed` — a user was unsubscribed
+- `INFO sms_reply.confirmation.sent` — unsubscribe confirmation SMS sent
 
-All sensitive data is automatically masked in logs:
+**Failure events:**
 
-- **Phone Numbers**: Show only last 3 digits (`***123`)
-- **Email Addresses**: Show first 2 characters and domain (`ab***@example.com`)
-- **OTP Codes**: Never logged, only length is shown
+- `WARN sms_reply.stop.user_not_found` — STOP from a phone the backend doesn't know
+- `WARN sms_reply.confirmation.no_template` — confirmation template not configured
+- `ERROR sms_reply.stop.failure` — backend `/opt-out-sms-alert` returned non-2xx
+- `ERROR sms_reply.confirmation.failed` — confirmation SMS dispatch failed
+- `ERROR sms_reply.poll.failure` — poll cycle threw
+- `ERROR process_sms_replies.failure` — controller-level catch
 
-### Request Tracking
+## Notify-service Error Logging
 
-Every request includes:
+When the Notify API rejects a request, the rich detail goes to **one log line at the service layer**. The controller-layer error log is intentionally lean — correlate by `requestId`.
 
-- `requestId` from `x-cdp-request-id` header
-- User agent and IP address
-- Timestamp and operation context
+**Service-layer events** ([notify-service.js](src/subscribe/services/notify-service.js)):
 
-### Operation Tracking
+```
+ERROR notify.send_sms.missing_parameters       { operationId, hasTemplateId, hasPhoneNumber }
+ERROR notify.send_sms_generic.missing_id       { operationId }
+ERROR notify.send_sms_generic.failure          { category, errorType, statusCode, originalError, phoneNumberMasked, templateId }
+ERROR notify.send_email.validation_failed      { hasTemplateId, hasEmailAddress, validationErrors }
+ERROR notify.send_email.missing_notification_id
+ERROR notify.send_email.failure                { statusCode, errorType, category, retriable, notifyResponse, retryRecommended }
+ERROR notify.get_status.failure                { operationId, notificationId, statusCode, errorType, category, retriable, originalError }
+```
 
-Each service operation includes:
+**Error categories** (from `parseNotifyError`):
 
-- Unique `operationId` for tracing
-- Step-by-step execution logging
-- Success/failure states
-- Performance timing information
+| Category       | Notify trigger         | Retriable |
+| :------------- | :--------------------- | :-------- |
+| `unauthorized` | 401                    | No        |
+| `forbidden`    | 403                    | No        |
+| `rate_limit`   | `RateLimitError`       | Yes       |
+| `daily_limit`  | `TooManyRequestsError` | Yes       |
+| `bad_request`  | 400                    | No        |
+| `server_error` | 5xx                    | Yes       |
+| `unknown`      | Anything else          | No        |
+
+## Service-layer DEBUG Events
+
+These are emitted at DEBUG only. To see them in CDP, set the log level to `debug` temporarily for an active investigation. They are not normally visible.
+
+**[otp.service.js](src/subscribe/services/otp.service.js):** `otp.generate.success`, `otp.validate.success`
+
+**[user-contact-service.js](src/subscribe/services/user-contact-service.js):** `user_contact.store.start`, `user_contact.store.executing_upsert`, `user_contact.store.success`, `user_contact.validate.start`, `user_contact.validate.finding_document`, `user_contact.validate.document_found`, `user_contact.validate.marking_as_validated`, `user_contact.validate.success`, `user_contact.get.start`, `user_contact.get.completed`
+
+**[email-verification.service.js](src/subscribe/services/email-verification.service.js):** `email_verification.indexes.created`, `email_verification.store.start`, `email_verification.store.success`, `email_verification.get.start`, `email_verification.get.completed`
+
+**[user-notification-detail.service.js](src/subscribe/services/user-notification-detail.service.js):** `user_notification_detail.store.start`, `user_notification_detail.store.success`
+
+**[notify-service.js](src/subscribe/services/notify-service.js):** `notify.send_sms.start`, `notify.send_sms.calling_notify_api`, `notify.send_sms.api_response_received`, `notify.send_sms.success`, `notify.send_email.start`, `notify.send_email.api_call.calling_notify_api`, `notify.send_email.api_call.api_response_received`, `notify.send_email.success`, `notify.get_status.start`, `notify.get_status.calling_notify_api`, `notify.get_status.success`
+
+**[sms-reply.service.js](src/subscribe/services/sms-reply.service.js):** `sms_reply.poll` (start), `sms_reply.process`, `sms_reply.ignored`, `sms_reply.stop.duplicate_in_batch`
+
+Service-layer INFO events kept (low volume, business audit value):
+
+- `user_contact.cleanup.success` — periodic cleanup result
+- `sms_reply.poll.complete` — per-cycle summary (terminal log)
+- `sms_reply.stop.unsubscribed` — state change
+- `sms_reply.confirmation.sent` — state change
+
+## Security: Data Masking
+
+All sensitive data is masked via [common/helpers/masking-utils.js](src/common/helpers/masking-utils.js):
+
+- **Phone Numbers**: `maskPhoneNumber()` / `maskMsisdn()` — show only last 3 digits (`***123`)
+- **Email Addresses**: `maskEmail()` — first 2 chars + domain (`ab***@example.com`)
+- **Generic Contacts**: `maskContact()` (auto-detects phone vs email)
+- **Template IDs**: `maskTemplateId()`
+- **UUIDs**: `maskUuid()` or truncated to first 8 chars
+- **OTP Codes**: Never logged
+
+## Request and Operation IDs
+
+- Every controller log carries `requestId` (`x-cdp-request-id` header → `request.info.id` → generated `req_<uuid>`)
+- Every service log carries an `operationId` (`store_<uuid>`, `validate_<uuid>`, `gen_<uuid>`, etc.)
+- A controller-level `requestId` correlates with the rich service-level error log for the same request
 
 ## Debugging Workflows
 
-### Trace a Complete OTP Flow
+### OTP request that failed
 
-1. Search for `requestId` in logs to see the complete request flow
-2. Use `operationId` to trace service-level operations
-3. Follow the sequence: request → validation → generation → storage → notification
+1. Filter CDP by `requestId`
+2. `otp.generate.requested` shows what came in
+3. Either `otp.generate.success` (success — done), or one of:
+   - `WARN otp.generate.validation_failed` (bad phone)
+   - `ERROR otp.generate.notification_failed` (Notify rejected) — then look for `notify.send_sms_generic.failure` with the same `requestId` for `statusCode` / `category` / `errorType`
+   - `ERROR otp.generate.unexpected_error` (bug)
 
-### Common Debug Scenarios
+### Email link that wasn't received
 
-#### OTP Generation Issues
+1. `email.generate_link.requested` → confirms the request reached us
+2. `email.generate_link.success` → confirms we asked Notify to send (with `notificationId`)
+3. Missing `success` log? → look for `email.generate_link.notification_failed` and the paired `notify.send_email.failure`
 
-```bash
-# Find all OTP generation attempts for a phone number
-grep "otp.generate" logs | grep "***123"
+### User claims they were not unsubscribed after sending STOP
 
-# Trace a specific operation
-grep "gen_1234567890_abc123" logs
-```
+1. Filter for masked phone number
+2. `sms_reply.poll` cycles show the message was seen
+3. `sms_reply.stop.unsubscribed` confirms backend opt-out succeeded
+4. Absence of this log + presence of `sms_reply.stop.failure` → backend failure
+5. `sms_reply.confirmation.sent` confirms we acknowledged to the user
 
-#### Notification Delivery Problems
+### Notify outage
 
-```bash
-# Find notification failures
-grep "notification.*failed" logs
-
-# Check Notify API issues
-grep "notify.*failure" logs
-```
-
-#### Database Issues
-
-```bash
-# Find user contact operations
-grep "user_contact" logs
-
-# Check validation failures
-grep "validate.*failed" logs
-```
-
-## Performance Monitoring
-
-Key metrics to track:
-
-- OTP generation time (from request to notification sent)
-- Database operation duration
-- Notify API response times
-- Validation success/failure rates
-- Error rates by operation type
-
-## Error Categories
-
-### Validation Errors
-
-- Invalid phone number format
-- Invalid email format
-- Missing required parameters
-
-### Business Logic Errors
-
-- OTP expired
-- OTP already used
-- Contact not found
-- Invalid OTP provided
-
-### External Service Errors
-
-- Notify API failures
-- Database connection issues
-- Network timeouts
-
-### System Errors
-
-- Unexpected exceptions
-- Configuration issues
-- Resource exhaustion
-
-## Log Analysis Tips
-
-1. **Use Request IDs** to trace complete user journeys
-2. **Use Operation IDs** to debug specific service operations
-3. **Filter by log levels** to focus on errors or warnings
-4. **Search by component** (otp, notification, user_contact, etc.)
-5. **Monitor error patterns** to identify systemic issues
+1. Filter for `notify.*.failure` events
+2. Group by `category` (`server_error` / `rate_limit` / `unauthorized`) to triage
+3. `retriable: true` events should self-heal; `retriable: false` need code/config fix
 
 ## Alerting Recommendations
 
-Set up alerts for:
-
-- High error rates (>5% in 5 minutes)
-- Notify API failures
-- Database operation failures
-- Long response times (>5 seconds)
-- Validation failure spikes
-
-This comprehensive logging implementation provides full visibility into the OTP and notification flow, enabling quick identification and resolution of issues through detailed, structured logs.
+| Signal             | Condition                                                           | Action                    |
+| :----------------- | :------------------------------------------------------------------ | :------------------------ |
+| Notify outage      | `notify.*.failure` with `category: server_error` count > N          | Page                      |
+| Auth break         | Any `notify.*.failure` with `category: unauthorized` or `forbidden` | Page                      |
+| Rate limit hit     | `notify.*.failure` with `category: rate_limit` or `daily_limit`     | Notify, don't page        |
+| Persistence broken | Any `user_notification_detail.store.error`                          | Page (audit trail broken) |
+| Validation spike   | `*.validation_failed` rate > baseline × 5                           | Investigate               |
+| SMS reply broken   | `sms_reply.poll.failure` repeating                                  | Investigate               |
+| Generic            | Error rate > 5% in 5min window across `subscribe.*`                 | Investigate               |

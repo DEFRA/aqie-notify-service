@@ -127,7 +127,7 @@ describe('OTP Controller', () => {
           expect.stringContaining('otp.generate.notification_failed')
         )
         const logCall = mockLogger.error.mock.calls[0][0]
-        expect(logCall).toContain('Notify service unavailable')
+        expect(logCall).toContain('"errorName":"Error"')
         expect(logCall).toContain('test-request-id')
         expect(logCall).toContain('****6789')
         expect(result.isBoom).toBe(true)

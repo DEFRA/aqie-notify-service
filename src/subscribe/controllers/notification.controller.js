@@ -34,19 +34,20 @@ export async function sendNotificationHandler(request, h) {
       requestId
     )
 
-    logger.info(
-      `notification.send.success ${JSON.stringify({ requestId, notificationId: response.notificationId, contactType: phoneNumber ? 'sms' : 'email' })}`
-    )
-
     const userNotificationDetailService = createUserNotificationDetailService(
       request.db,
       logger
     )
-    await userNotificationDetailService.storeNotificationDetail({
-      notificationId: response.notificationId,
-      alertId,
-      notifyStatus: 'submitted'
-    })
+    const persistResult =
+      await userNotificationDetailService.storeNotificationDetail({
+        notificationId: response.notificationId,
+        alertId,
+        notifyStatus: 'submitted'
+      })
+
+    logger.info(
+      `notification.send.success ${JSON.stringify({ requestId, notificationId: response.notificationId, contactType: phoneNumber ? 'sms' : 'email', alertId, insertedId: persistResult?.insertedId })}`
+    )
 
     return h
       .response({
@@ -56,7 +57,7 @@ export async function sendNotificationHandler(request, h) {
       .code(HTTP_STATUS_CREATED)
   } catch (err) {
     logger.error(
-      `notification.send.failed ${JSON.stringify({ requestId, error: err.message, contactType: phoneNumber ? 'sms' : 'email', templateId: maskTemplateId(templateId) })}`
+      `notification.send.failed ${JSON.stringify({ requestId, contactType: phoneNumber ? 'sms' : 'email', templateId: maskTemplateId(templateId), errorName: err.name })}`
     )
     return Boom.failedDependency('Failed to send notification')
   }

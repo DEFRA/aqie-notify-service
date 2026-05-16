@@ -52,7 +52,8 @@ describe('createSmsReplyService', () => {
     loggerMock = {
       info: vi.fn(),
       error: vi.fn(),
-      warn: vi.fn()
+      warn: vi.fn(),
+      debug: vi.fn()
     }
 
     // Instantiate service
@@ -77,10 +78,6 @@ describe('createSmsReplyService', () => {
     const result = await service.pollAndProcessReplies()
 
     expect(result).toEqual({ total: 0, processed: 0 })
-    // Updated assertion to match new logger format
-    expect(loggerMock.info).toHaveBeenCalledWith(
-      expect.stringContaining('sms_reply.poll')
-    )
     expect(loggerMock.info).toHaveBeenCalledWith(
       expect.stringContaining('sms_reply.poll.complete')
     )

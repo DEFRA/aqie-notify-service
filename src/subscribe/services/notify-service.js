@@ -12,8 +12,7 @@ import {
 import {
   createLoggingContext,
   logError,
-  logInfo,
-  trackPerformance
+  logDebug
 } from '../../common/helpers/logging-context.js'
 
 const logger = createLogger()
@@ -77,14 +76,9 @@ class NotifyService {
   /**
    * Generic SMS sender
    */
-  async sendSmsGeneric(
-    templateId,
-    phoneNumber,
-    personalisation,
-    requestId = null
-  ) {
+  async sendSmsGeneric(templateId, phoneNumber, personalisation) {
     const operationId = generateOperationId('sms')
-    logger.info(
+    logger.debug(
       `notify.send_sms.start ${JSON.stringify({ operationId, templateId: maskTemplateId(templateId), phoneNumberMasked: maskMsisdn(phoneNumber), personalisationKeys: personalisation ? Object.keys(personalisation) : [] })}`
     )
 
@@ -98,16 +92,14 @@ class NotifyService {
         )
       }
 
-      logger.info(
-        `notify.send_sms.calling_notify_api ${JSON.stringify({ operationId, templateId: maskTemplateId(templateId), phoneNumberMasked: maskMsisdn(phoneNumber) })}`
-      )
+      logger.debug(`notify.send_sms.calling_notify_api`)
 
       const response = await this.client.sendSms(templateId, phoneNumber, {
         personalisation
       })
 
       const data = response?.data || {}
-      logger.info(
+      logger.debug(
         `notify.send_sms.api_response_received ${JSON.stringify({ operationId, hasData: !!data, hasId: !!data.id, hasUri: !!data.uri, responseKeys: Object.keys(data), notificationId: data.id })}`
       )
 
@@ -118,7 +110,7 @@ class NotifyService {
         throw new Error('MissingNotificationId')
       }
 
-      logger.info(
+      logger.debug(
         `notify.send_sms.success ${JSON.stringify({ operationId, notificationId: data.id, templateId: maskTemplateId(templateId) })}`
       )
 
@@ -151,7 +143,7 @@ class NotifyService {
       notifyApiKey: this.apiKey ? 'present' : 'missing'
     })
 
-    logInfo(
+    logDebug(
       logger,
       context,
       'start',
@@ -180,7 +172,7 @@ class NotifyService {
       }
 
       const apiContext = context.createChild('api_call')
-      logInfo(
+      logDebug(
         logger,
         apiContext,
         'calling_notify_api',
@@ -192,7 +184,7 @@ class NotifyService {
       })
 
       const data = response?.data || {}
-      logInfo(logger, apiContext, 'api_response_received', `id=${data.id}`, {
+      logDebug(logger, apiContext, 'api_response_received', `id=${data.id}`, {
         hasData: !!data,
         hasId: !!data.id,
         hasUri: !!data.uri,
@@ -214,12 +206,7 @@ class NotifyService {
         throw new Error('MissingNotificationId')
       }
 
-      logInfo(logger, context, 'success', `notificationId=${data.id}`, {
-        notificationId: data.id,
-        apiResponseTime: apiContext.getDuration()
-      })
-
-      trackPerformance(logger, context, 'email_send', {
+      logDebug(logger, context, 'success', `notificationId=${data.id}`, {
         notificationId: data.id,
         apiResponseTime: apiContext.getDuration()
       })
@@ -252,18 +239,12 @@ class NotifyService {
    */
   async getNotificationStatus(notificationId) {
     const operationId = generateOperationId('status')
-    logger.info(
-      `notify.get_status.start ${JSON.stringify({ operationId, notificationId })}`
-    )
+    logger.debug(`notify.get_status.start`)
 
     try {
-      logger.info(
-        `notify.get_status.calling_notify_api ${JSON.stringify({ operationId, notificationId })}`
-      )
-
       const response = await this.client.getNotificationById(notificationId)
 
-      logger.info(
+      logger.debug(
         `notify.get_status.success ${JSON.stringify({ operationId, notificationId, status: response.body?.status, createdAt: response.body?.created_at })}`
       )
 

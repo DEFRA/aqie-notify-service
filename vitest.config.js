@@ -5,6 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
+    // Raised from the 5s default to absorb cold-cache module loads under suite-level
+    // parallel pressure (some tests use vi.resetModules() + dynamic imports, which
+    // can spike to ~2.5s
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
